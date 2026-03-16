@@ -1,0 +1,8 @@
+.env
+results.json
+__pycache__/
+*.pyc
+papers/
+results.json
+__pycache__/
+*.pyc

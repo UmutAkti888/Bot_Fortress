@@ -1,0 +1,130 @@
+# Project Brief: BotHub — A Flask-Based Personal Bot Dashboard - 16th of March 2026
+
+## Who I am
+Even though you know already, here is another summary on this:
+I am an electronics/robotics engineer learning web development from scratch.
+I have minimal Python web experience. I know basic Python, FastAPI concepts, and ROS2.
+My goal is to LEARN Flask as I build this — not just receive finished code.
+Please explain what you are doing as you go, especially Flask-specific concepts.
+
+---
+
+## What we are building
+
+A local web application called **BotHub** — a personal dashboard to run and manage bots from a browser.
+
+The first bot is an **ArXiv Paper Fetcher** that:
+- Accepts keywords from the user (e.g. "SLAM", "DBSCAN", "mobile robotics")
+- Searches the ArXiv API (free, no key required)
+- Downloads matching PDFs to a local `/papers` folder
+- Saves paper metadata (title, authors, abstract, link, date) to `results.json`
+
+More bots will be added later. The architecture must make it easy to plug in new bots.
+
+---
+
+## Project structure to build
+
+```
+bothub/
+├── app.py                  # Flask app entry point
+├── bots/
+│   ├── __init__.py
+│   └── arxiv_bot.py        # ArXiv search + download logic
+├── templates/
+│   ├── base.html           # Shared HTML layout
+│   ├── index.html          # Dashboard homepage (list of bots)
+│   └── arxiv.html          # ArXiv bot page (form + results)
+├── static/
+│   └── style.css           # Basic styling
+├── papers/                 # Downloaded PDFs go here (gitignored)
+├── results.json            # Saved metadata (gitignored)
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## Learning order — build in this sequence
+
+**Step 1 — Scaffold & explain Flask basics**
+- Create `app.py` with a single route `GET /` that returns "BotHub is running"
+- Explain: what is a Flask route, what is `app.run()`, what is debug mode
+
+**Step 2 — Templates**
+- Create `base.html` and `index.html`
+- Render the index page with a list of bots (just ArXiv for now, as a card)
+- Explain: what is Jinja2, what does `render_template` do, what is template inheritance (`{% extends %}`)
+
+**Step 3 — The ArXiv bot logic (pure Python, no Flask yet)**
+- Create `bots/arxiv_bot.py`
+- Use the ArXiv API: `http://export.arxiv.org/api/query?search_query=all:{keyword}&max_results=10`
+- Parse the XML response (use `feedparser` library)
+- Download PDFs using `requests`
+- Save metadata to `results.json`
+- Explain: how the ArXiv API works, what `feedparser` does
+
+**Step 4 — Connect bot to Flask**
+- Add route `GET /arxiv` → render the arxiv form page
+- Add route `POST /arxiv` → receive keywords from form, run the bot, show results
+- Explain: what is a POST request, how do HTML forms send data to Flask, what is `request.form`
+
+**Step 5 — Display results**
+- Show downloaded papers on the arxiv page (title, authors, abstract snippet, PDF link)
+- Explain: how to pass data from a route to a template using `render_template(data=...)`
+
+**Step 6 — Polish**
+- Add basic CSS styling in `static/style.css`
+- Add a README with setup instructions
+- Create `requirements.txt`
+
+---
+
+## ArXiv API details
+
+- Base URL: `http://export.arxiv.org/api/query`
+- Example query: `http://export.arxiv.org/api/query?search_query=all:SLAM+AND+all:mapping&max_results=10`
+- Response format: Atom XML feed (use `feedparser` to parse)
+- PDF link format: replace `abs` with `pdf` in the entry link, e.g.:
+  `https://arxiv.org/abs/2301.12345` → `https://arxiv.org/pdf/2301.12345`
+- Relevant ArXiv category for robotics: `cs.RO`
+
+---
+
+## Important constraints
+
+- Keep it simple. No JavaScript frameworks. Plain HTML + CSS is fine.
+- No database. Use JSON files for now.
+- No authentication. This is a local tool.
+- Code must be readable and well-commented — I am learning.
+- If you introduce a new concept (decorator, context, Jinja block), pause and explain it briefly.
+
+---
+
+## My hardware / environment
+
+- OS: Windows or Linux (WSL likely)
+- Python 3.10+
+- No GPU required for this project
+- Will run locally on `localhost:5000`
+
+---
+
+## How I want you to work with me
+
+- **Build one step at a time.** After each step, wait for me to confirm before moving on.
+- **Explain as you go.** Every new Flask concept gets a 2-3 sentence explanation.
+- **Ask me if something is unclear.** Don't assume I know web development vocabulary.
+- **Point out mistakes if I make them.** I want to understand errors, not just fix them.
+
+---
+
+## Critical routine at the end of each session:
+
+- **Update, if it is not then create, CLAUDE.md file."
+
+---
+
+## First task
+
+Start with Step 1. Create `app.py` and explain Flask routing to me.

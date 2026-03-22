@@ -1,4 +1,5 @@
 # arxiv_bot.py — ArXiv paper search and download logic.
+# Lives at repo root (bots/) so it can be used standalone or via BotHub.
 
 import os
 import json
@@ -6,7 +7,9 @@ import requests
 import feedparser
 from urllib.parse import urlencode  # Safely encodes special characters in URLs
 
-PAPERS_DIR  = os.path.join(os.path.dirname(__file__), "..", "papers")
+# Paths are relative to this file's location (Bot_Fortress/bots/).
+# ".." steps up to Bot_Fortress/ — keeping papers and metadata at repo root.
+PAPERS_DIR   = os.path.join(os.path.dirname(__file__), "..", "papers")
 RESULTS_FILE = os.path.join(os.path.dirname(__file__), "..", "results.json")
 
 

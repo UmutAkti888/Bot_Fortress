@@ -1,11 +1,20 @@
 # app.py — Flask entry point.
 
+import sys
 import json
 import os
 from flask import Flask, render_template, request
+
+# Add the repo root (Bot_Fortress/) to Python's search path.
+# This lets us import from the top-level bots/ package, which lives outside bothub/.
+# Without this, Python would only look inside bothub/ and not find bots/.
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, REPO_ROOT)
+
 from bots.arxiv_bot import search, download_pdfs
 
-RESULTS_FILE = os.path.join(os.path.dirname(__file__), "results.json")
+# results.json now lives at repo root alongside bots/ and papers/
+RESULTS_FILE = os.path.join(REPO_ROOT, "results.json")
 
 app = Flask(__name__)
 

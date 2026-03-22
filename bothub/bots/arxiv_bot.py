@@ -10,15 +10,28 @@ PAPERS_DIR  = os.path.join(os.path.dirname(__file__), "..", "papers")
 RESULTS_FILE = os.path.join(os.path.dirname(__file__), "..", "results.json")
 
 
-def search(keywords: list[str], max_results: int = 10) -> list[dict]:
+def search(
+    keywords: list[str],
+    max_results: int = 10,
+    from_year: int = None,
+    to_year:   int = None,
+) -> list[dict]:
     """
     Search ArXiv for papers matching the given keywords.
+    Optionally filter by publication year range.
     Returns metadata only — does NOT download PDFs.
     Fast enough to use inside a web request.
     """
 
     # Join keywords into an ArXiv query string: all:SLAM AND all:mapping
     query = " AND ".join(f"all:{kw}" for kw in keywords)
+
+    # Date range filter — ArXiv accepts: submittedDate:[YYYYMMDD TO YYYYMMDD]
+    # If only one bound is given, we use a sensible default for the other.
+    if from_year or to_year:
+        from_date = f"{from_year if from_year else 1900}0101"
+        to_date   = f"{to_year   if to_year   else 2099}1231"
+        query += f" AND submittedDate:[{from_date} TO {to_date}]"
 
     # urlencode() handles spaces and special characters in the query string.
     # Without it, "mobile robot" becomes a broken URL with a raw space in it.

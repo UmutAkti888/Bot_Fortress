@@ -21,9 +21,15 @@ python app.py
 - [x] Step 1 — app.py scaffold (single GET / route, Flask basics explained)
 - [x] Step 2 — Templates (base.html, index.html, Jinja2 inheritance, render_template)
 - [x] Step 3 — arxiv_bot.py (ArXiv API, feedparser, PDF download, results.json)
-- [ ] Step 4 — Connect bot to Flask (GET/POST /arxiv route, request.form)
-- [ ] Step 5 — Display results in arxiv.html template
+- [x] Step 4 — Connect bot to Flask (GET/POST /arxiv, /arxiv/download routes)
+- [x] Step 5 — arxiv.html: search form, results list, download button, status message
 - [ ] Step 6 — CSS polish, README, requirements.txt finalisation
+
+## Planned QoL features (ArXiv bot)
+- [ ] Date range filter on search (from year / to year) — ArXiv API supports submittedDate:[YYYYMMDD TO YYYYMMDD]
+- [ ] Larger result counts (25, 50, 100 options in dropdown)
+- [ ] Bulk paginated download: fetch all pages until year cutoff, download in batches with progress indicator
+- [ ] Concept document: brief explanation of major steps and Flask/web concepts used
 
 ## Architecture decisions
 - Framework: Flask, plain HTML+CSS, no JS frameworks

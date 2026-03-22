@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}ArXiv Bot — BotHub{% endblock %}
+
+{% block content %}
+
+<h2>📄 ArXiv Paper Fetcher</h2>
+
+<!-- ===== SEARCH FORM =====
+     method="POST" means: when submitted, send data to the server via POST request.
+     action="/arxiv" means: send it to the /arxiv route in app.py.
+     Without action, the form submits to the current URL by default (also fine here).
+-->
+<form method="POST" action="/arxiv" class="search-form">
+
+    <label for="keywords">Search keywords</label>
+
+    <!-- The name="keywords" attribute is how Flask identifies this field.
+         In app.py we'll read it with: request.form["keywords"] -->
+    <input
+        type="text"
+        id="keywords"
+        name="keywords"
+        placeholder="e.g. SLAM, mobile robotics, DBSCAN"
+        value="{{ last_query }}"
+        required
+    >
+
+    <label for="max_results">Max results</label>
+    <select name="max_results" id="max_results">
+        <option value="5"  {% if max_results == 5  %}selected{% endif %}>5</option>
+        <option value="10" {% if max_results == 10 %}selected{% endif %}>10</option>
+        <option value="20" {% if max_results == 20 %}selected{% endif %}>20</option>
+    </select>
+
+    <button type="submit" class="btn">Search & Download</button>
+
+</form>
+
+<!-- ===== RESULTS SECTION =====
+     "papers" is the list we pass in from app.py via render_template.
+     If it's empty or not provided, this section is hidden.
+-->
+{% if download_status %}
+    <p class="download-status">✔ {{ download_status }}</p>
+{% endif %}
+
+{% if papers %}
+
+    <div class="result-header">
+        <p class="result-count">Found {{ papers|length }} paper(s) for "<strong>{{ last_query }}</strong>"</p>
+
+        <!-- Separate form just for the download button.
+             It POSTs to /arxiv/download, which reads results.json and downloads PDFs. -->
+        <form method="POST" action="/arxiv/download">
+            <button type="submit" class="btn btn-outline">⬇ Download All PDFs</button>
+        </form>
+    </div>
+
+    <div class="paper-list">
+        {% for paper in papers %}
+        <div class="paper-card">
+
+            <h3><a href="{{ paper.abs_link }}" target="_blank">{{ paper.title }}</a></h3>
+
+            <p class="paper-meta">
+                {{ paper.published }} &nbsp;|&nbsp;
+                {{ paper.authors | join(", ") }}
+            </p>
+
+            <p class="paper-abstract">{{ paper.summary[:300] }}...</p>
+
+            <div class="paper-links">
+                <a href="{{ paper.abs_link }}" target="_blank" class="btn btn-outline">Abstract</a>
+                <a href="{{ paper.pdf_link }}" target="_blank" class="btn">PDF</a>
+            </div>
+
+        </div>
+        {% endfor %}
+    </div>
+
+{% elif searched %}
+    <!-- searched=True but papers is empty means the query returned nothing -->
+    <p class="no-results">No papers found. Try different keywords.</p>
+{% endif %}
+
+{% endblock %}

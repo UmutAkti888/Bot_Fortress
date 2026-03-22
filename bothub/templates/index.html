@@ -1,0 +1,32 @@
+<!--
+    This template "extends" base.html.
+    That means: take the full base.html layout, but fill in
+    the named sections (blocks) with our own content.
+-->
+{% extends "base.html" %}
+
+
+<!-- Override the title block -->
+{% block title %}BotHub — Dashboard{% endblock %}
+
+
+<!-- Fill in the main content block -->
+{% block content %}
+
+<h2>Available Bots</h2>
+
+<!--
+    This is a "bot card" — a small UI tile for each bot.
+    Right now we only have ArXiv. More bots will get their own cards later.
+-->
+<div class="bot-grid">
+
+    <div class="bot-card">
+        <h3>📄 ArXiv Paper Fetcher</h3>
+        <p>Search the ArXiv API by keyword. Downloads matching PDFs and saves metadata to a local JSON file.</p>
+        <a href="/arxiv" class="btn">Open Bot</a>
+    </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!--
+        Jinja2 block: "title"
+        Child templates can override this block to set their own page title.
+        If they don't, the default "BotHub" is used.
+    -->
+    <title>{% block title %}BotHub{% endblock %}</title>
+
+    <!-- Link to our CSS file. url_for() generates the correct path to /static/style.css -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <!-- ===== SITE HEADER (shared across all pages) ===== -->
+    <header>
+        <h1><a href="/">⚙ BotHub</a></h1>
+        <p>Your personal bot dashboard</p>
+    </header>
+
+    <!-- ===== NAVIGATION ===== -->
+    <nav>
+        <a href="/">Home</a>
+        <a href="/arxiv">ArXiv Bot</a>
+    </nav>
+
+    <!-- ===== MAIN CONTENT AREA ===== -->
+    <!-- Each child template fills in this block with its own content -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- ===== FOOTER ===== -->
+    <footer>
+        <p>BotHub — running locally</p>
+    </footer>
+
+</body>
+</html>

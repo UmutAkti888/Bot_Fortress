@@ -72,16 +72,21 @@
     <div class="result-header">
         <p class="result-count">Found {{ papers|length }} paper(s) for "<strong>{{ last_query }}</strong>"</p>
 
-        <!-- Separate form just for the download button.
-             Hidden fields carry the original search state back to the server,
-             so the page re-renders correctly after the download completes. -->
-        <form method="POST" action="/arxiv/download">
-            <input type="hidden" name="last_query"  value="{{ last_query }}">
-            <input type="hidden" name="max_results" value="{{ max_results }}">
-            <input type="hidden" name="from_year"   value="{{ from_year }}">
-            <input type="hidden" name="to_year"     value="{{ to_year }}">
-            <button type="submit" class="btn btn-outline">⬇ Download All PDFs</button>
-        </form>
+        <div class="action-buttons">
+            <!-- Download All PDFs -->
+            <form method="POST" action="/arxiv/download">
+                <input type="hidden" name="last_query"  value="{{ last_query }}">
+                <input type="hidden" name="max_results" value="{{ max_results }}">
+                <input type="hidden" name="from_year"   value="{{ from_year }}">
+                <input type="hidden" name="to_year"     value="{{ to_year }}">
+                <button type="submit" class="btn btn-outline">⬇ Download All PDFs</button>
+            </form>
+
+            <!-- Export to CSV — triggers a file download in the browser -->
+            <form method="POST" action="/arxiv/export">
+                <button type="submit" class="btn btn-outline">📋 Export to CSV</button>
+            </form>
+        </div>
     </div>
 
     <div class="paper-list">

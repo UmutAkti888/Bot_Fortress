@@ -228,6 +228,13 @@ main h2 {
     gap: 0.5rem;
 }
 
+/* Groups the Download and Export buttons side by side */
+.action-buttons {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
 .download-status {
     background: #e6f4ea;
     border: 1px solid #a8d5b5;

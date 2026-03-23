@@ -1,9 +1,11 @@
 # app.py — Flask entry point.
 
 import sys
+import csv
+import io
 import json
 import os
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, Response
 
 # Add the repo root (Bot_Fortress/) to Python's search path.
 # This lets us import from the top-level bots/ package, which lives outside bothub/.
@@ -86,6 +88,54 @@ def arxiv_download():
         to_year=to_year,
         searched=True,
         download_status=f"Downloaded {len(downloaded)} PDF(s) to the papers/ folder.",
+    )
+
+
+@app.route("/arxiv/export", methods=["POST"])
+def arxiv_export():
+    """
+    Triggered by the 'Export to CSV' button.
+    Reads the last search results from results.json and returns a CSV file download.
+    Uses only Python stdlib — no extra libraries needed.
+    """
+    papers = []
+    if os.path.exists(RESULTS_FILE):
+        with open(RESULTS_FILE, encoding="utf-8") as f:
+            papers = json.load(f)
+
+    # io.StringIO() creates an in-memory text buffer — like a file, but in RAM.
+    # This avoids writing a temporary file to disk just to send it to the browser.
+    output = io.StringIO()
+
+    # Write a UTF-8 BOM (Byte Order Mark) as the very first character.
+    # Excel uses this hidden marker to detect that the file is UTF-8 encoded.
+    # Without it, Excel guesses Windows-1252 and corrupts accented characters.
+    output.write('\ufeff')
+
+    writer = csv.writer(output)
+
+    # Header row
+    writer.writerow(["Title", "Authors", "Published", "Abstract", "ArXiv Link", "PDF Link"])
+
+    for paper in papers:
+        writer.writerow([
+            paper["title"],
+            ", ".join(paper["authors"]),
+            paper["published"],
+            paper["summary"],
+            paper["abs_link"],
+            paper["pdf_link"],
+        ])
+
+    output.seek(0)  # Rewind the buffer to the start before reading
+
+    # Response() lets us return raw data with custom headers.
+    # Content-Disposition: attachment tells the browser to download it, not display it.
+    # The filename shown in the Save dialog will be "arxiv_results.csv".
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=arxiv_results.csv"}
     )
 
 

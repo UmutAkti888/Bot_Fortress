@@ -5,7 +5,9 @@ import csv
 import io
 import json
 import os
-from flask import Flask, render_template, request, Response
+import requests
+from flask import Flask, render_template, request, Response, stream_with_context, jsonify
+import markdown as md_lib
 
 # Add the repo root (Bot_Fortress/) to Python's search path.
 # This lets us import from the top-level bots/ package, which lives outside bothub/.
@@ -14,6 +16,10 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO_ROOT)
 
 from bots.arxiv_bot import search, download_pdfs
+from bots.semantic_scholar_bot import search as semantic_search
+from bots.lit_review_bot import analyze, load_papers, build_prompt, TASKS
+
+SEMANTIC_RESULTS_FILE = os.path.join(REPO_ROOT, "semantic_results.json")
 
 # results.json now lives at repo root alongside bots/ and papers/
 RESULTS_FILE = os.path.join(REPO_ROOT, "results.json")
@@ -137,6 +143,169 @@ def arxiv_export():
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=arxiv_results.csv"}
     )
+
+
+@app.route("/semantic", methods=["GET", "POST"])
+def semantic():
+    if request.method == "POST":
+        raw_keywords = request.form.get("keywords", "")
+        max_results  = int(request.form.get("max_results", 10))
+        keywords     = [kw.strip() for kw in raw_keywords.split(",") if kw.strip()]
+
+        papers = semantic_search(keywords, max_results=max_results)
+
+        return render_template(
+            "semantic_scholar.html",
+            papers=papers,
+            last_query=raw_keywords,
+            max_results=max_results,
+            searched=True,
+        )
+
+    return render_template(
+        "semantic_scholar.html",
+        papers=[], last_query="", max_results=10, searched=False,
+    )
+
+
+@app.route("/semantic/export", methods=["POST"])
+def semantic_export():
+    """Export last Semantic Scholar results as a CSV file."""
+    papers = []
+    if os.path.exists(SEMANTIC_RESULTS_FILE):
+        with open(SEMANTIC_RESULTS_FILE, encoding="utf-8") as f:
+            papers = json.load(f)
+
+    output = io.StringIO()
+    output.write('\ufeff')  # UTF-8 BOM for Excel
+    writer = csv.writer(output)
+
+    writer.writerow(["Title", "Authors", "Year", "Citations", "Abstract", "Page", "PDF"])
+
+    for paper in papers:
+        writer.writerow([
+            paper["title"],
+            ", ".join(paper["authors"]),
+            paper["year"],
+            paper["citations"],
+            paper["abstract"],
+            paper["url"],
+            paper["pdf_url"],
+        ])
+
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=semantic_results.csv"}
+    )
+
+
+@app.route("/litreview", methods=["GET", "POST"])
+def litreview():
+    # Ask Ollama which models are installed — populates the model dropdown.
+    # If Ollama isn't running we fall back to a sensible default list.
+    try:
+        r = requests.get("http://localhost:11434/api/tags", timeout=3)
+        available_models = [m["name"] for m in r.json().get("models", [])]
+    except Exception:
+        available_models = ["qwen3.5:0.8b"]
+
+    defaults = dict(
+        source="semantic", task="themes", model="qwen3.5:0.8b",
+        max_papers=10, available_models=available_models,
+        result=None, error=None, paper_count=None, task_label=None,
+    )
+
+    if request.method == "POST":
+        source     = request.form.get("source", "semantic")
+        task       = request.form.get("task", "themes")
+        model      = request.form.get("model", "qwen3.5:0.8b")
+        max_papers = int(request.form.get("max_papers", 10))
+
+        papers = load_papers(source)
+        if not papers:
+            return render_template("lit_review.html", **{**defaults,
+                "error": f"No saved results for '{source}'. Run a search there first.",
+                "source": source, "task": task, "model": model, "max_papers": max_papers,
+            })
+
+        result = analyze(papers, task=task, model=model, max_papers=max_papers)
+
+        return render_template("lit_review.html", **{**defaults,
+            "source": source, "task": task, "model": model, "max_papers": max_papers,
+            "result": result, "paper_count": min(len(papers), max_papers),
+            "task_label": TASKS.get(task, task),
+        })
+
+    return render_template("lit_review.html", **defaults)
+
+
+@app.route("/litreview/stream")
+def litreview_stream():
+    """
+    Streams the LLM response token by token using Server-Sent Events (SSE).
+    SSE is a browser standard: the server keeps the connection open and pushes
+    small chunks of text. The browser receives them in real time — no page reload.
+    This eliminates the timeout problem entirely: tokens flow as soon as they're ready.
+    """
+    source     = request.args.get("source", "semantic")
+    task       = request.args.get("task", "themes")
+    model      = request.args.get("model", "qwen3.5:0.8b")
+    max_papers = int(request.args.get("max_papers", 10))
+
+    papers = load_papers(source)[:max_papers]
+    prompt = build_prompt(papers, task)
+
+    def generate():
+        try:
+            resp = requests.post(
+                "http://localhost:11434/api/chat",
+                json={
+                    "model":    model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "stream":   True,   # Ollama sends one JSON line per token
+                },
+                stream=True,
+                timeout=300,
+            )
+            for line in resp.iter_lines():
+                if not line:
+                    continue
+                data  = json.loads(line)
+                token = data.get("message", {}).get("content", "")
+                if token:
+                    # SSE format: each message is "data: <payload>\n\n"
+                    # We JSON-encode the token so special characters are safe to transmit
+                    yield f"data: {json.dumps(token)}\n\n"
+                if data.get("done"):
+                    yield "data: [DONE]\n\n"
+                    break
+        except Exception as e:
+            yield f"data: {json.dumps(f'Error: {e}')}\n\n"
+            yield "data: [DONE]\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control":    "no-cache",
+            "X-Accel-Buffering": "no",   # Disables proxy buffering — needed for SSE to work
+        },
+    )
+
+
+@app.route("/litreview/render", methods=["POST"])
+def litreview_render():
+    """
+    Receives raw markdown text from the browser (sent as JSON after streaming ends).
+    Converts it to HTML using Python's markdown library and returns it.
+    The browser then injects the HTML directly into the result div.
+    'tables' extension enables markdown table support — the LLM uses these often.
+    """
+    raw = request.json.get("text", "")
+    html = md_lib.markdown(raw, extensions=["tables"])
+    return jsonify({"html": html})
 
 
 if __name__ == "__main__":

@@ -1,8 +1,19 @@
+# Environment
 .env
-results.json
-__pycache__/
-*.pyc
+
+# Downloaded PDFs
 papers/
+
+# Search result caches
 results.json
+semantic_results.json
+
+# Python artifacts
 __pycache__/
 *.pyc
+
+# Generated files
+bothub/system_map.txt
+
+# Local Claude settings
+.claude/settings.local.json

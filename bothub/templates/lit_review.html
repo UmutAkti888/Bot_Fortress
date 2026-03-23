@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Literature Review Assistant — BotHub{% endblock %}
+
+{% block content %}
+
+<h2>📚 Literature Review Assistant</h2>
+<p style="color:#555; margin-bottom:1.5rem;">
+    Sends your last search results to a local LLM via Ollama. Fully offline.
+</p>
+
+<form id="litreview-form" class="search-form">
+
+    <label for="source">Paper source</label>
+    <select name="source" id="source">
+        <option value="semantic">Semantic Scholar (last search)</option>
+        <option value="arxiv">ArXiv (last search)</option>
+    </select>
+
+    <label for="task">Analysis task</label>
+    <select name="task" id="task">
+        <option value="themes">Identify themes</option>
+        <option value="priority">Rank by importance</option>
+        <option value="gaps">Find research gaps</option>
+        <option value="summary">One-line summaries</option>
+        <option value="critique">Critical evaluation</option>
+    </select>
+
+    <label for="model">Ollama model</label>
+    <select name="model" id="model">
+        {% for m in available_models %}
+        <option value="{{ m }}">{{ m }}</option>
+        {% endfor %}
+    </select>
+
+    <label for="max_papers">Max papers to send</label>
+    <select name="max_papers" id="max_papers">
+        <option value="5">5  (fastest)</option>
+        <option value="10" selected>10</option>
+        <option value="15">15</option>
+        <option value="20">20 (recommended max for 0.8B)</option>
+    </select>
+
+    <button type="submit" class="btn" id="analyse-btn">Analyse</button>
+
+</form>
+
+<!-- Status line shown while the model is generating -->
+<p id="status-line" style="display:none; color:#777; font-size:0.88rem; margin:1rem 0;">
+    ⏳ Generating... tokens will appear below as the model responds.
+</p>
+
+<!-- Result box — hidden until analysis starts -->
+<div class="analysis-result" id="analysis-result" style="display:none;">
+    <h3 id="analysis-title">Analysis</h3>
+    <div class="analysis-text" id="analysis-text"></div>
+</div>
+
+<!--
+    Vanilla JavaScript — no frameworks.
+
+    How SSE (Server-Sent Events) works:
+    - We open a persistent GET connection to /litreview/stream
+    - The server pushes small chunks ("events") as the model generates tokens
+    - Each event triggers our onmessage handler, which appends the token to the page
+    - When the server sends [DONE], we close the connection
+
+    This is why the text appears word by word, exactly like ChatGPT.
+-->
+<script>
+    const form      = document.getElementById('litreview-form');
+    const resultBox = document.getElementById('analysis-result');
+    const resultDiv = document.getElementById('analysis-text');
+    const titleEl   = document.getElementById('analysis-title');
+    const statusEl  = document.getElementById('status-line');
+    const btnEl     = document.getElementById('analyse-btn');
+
+    // Map task values to readable labels
+    const taskLabels = {
+        themes:   "Identify themes",
+        priority: "Rank by importance",
+        gaps:     "Find research gaps",
+        summary:  "One-line summaries",
+        critique: "Critical evaluation",
+    };
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();  // Stop the normal page-reload form submission
+
+        // Read form values
+        const params = new URLSearchParams({
+            source:     document.getElementById('source').value,
+            task:       document.getElementById('task').value,
+            model:      document.getElementById('model').value,
+            max_papers: document.getElementById('max_papers').value,
+        });
+
+        // Reset and show the result area
+        resultDiv.innerHTML   = '';
+        titleEl.textContent   = 'Analysis — ' + (taskLabels[params.get('task')] || params.get('task'));
+        resultBox.style.display = 'block';
+        statusEl.style.display  = 'block';
+        btnEl.disabled = true;
+        btnEl.textContent = 'Analysing...';
+
+        // Accumulates the full raw markdown text as tokens arrive
+        let accumulated = '';
+
+        // Open the SSE stream
+        const source = new EventSource('/litreview/stream?' + params.toString());
+
+        source.onmessage = function(event) {
+            if (event.data === '[DONE]') {
+                source.close();
+                statusEl.style.display = 'none';
+                btnEl.disabled = false;
+                btnEl.textContent = 'Analyse';
+
+                // Send the full markdown text to Flask for server-side rendering.
+                // Flask converts it to HTML and returns it — we inject it into the div.
+                // This is why bold, tables, and headers render correctly.
+                fetch('/litreview/render', {
+                    method:  'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body:    JSON.stringify({ text: accumulated }),
+                })
+                .then(r => r.json())
+                .then(data => { resultDiv.innerHTML = data.html; });
+
+                return;
+            }
+            // While streaming: show raw text so the user sees progress immediately
+            const token = JSON.parse(event.data);
+            accumulated += token;
+            resultDiv.textContent = accumulated;
+        };
+
+        source.onerror = function() {
+            source.close();
+            statusEl.style.display = 'none';
+            btnEl.disabled = false;
+            btnEl.textContent = 'Analyse';
+            if (!accumulated) {
+                resultDiv.textContent = 'Could not connect to Ollama. Make sure it is running.';
+            }
+        };
+    });
+</script>
+
+{% endblock %}

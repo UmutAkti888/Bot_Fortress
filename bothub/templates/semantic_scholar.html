@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Semantic Scholar — BotHub{% endblock %}
+
+{% block content %}
+
+<h2>🔬 Semantic Scholar Search</h2>
+
+<form method="POST" action="/semantic" class="search-form">
+
+    <label for="keywords">Search keywords</label>
+    <input
+        type="text"
+        id="keywords"
+        name="keywords"
+        placeholder="e.g. SLAM DBSCAN lidar"
+        value="{{ last_query }}"
+        required
+    >
+
+    <label for="max_results">Max results</label>
+    <select name="max_results" id="max_results">
+        <option value="10"  {% if max_results == 10  %}selected{% endif %}>10</option>
+        <option value="25"  {% if max_results == 25  %}selected{% endif %}>25</option>
+        <option value="50"  {% if max_results == 50  %}selected{% endif %}>50</option>
+        <option value="100" {% if max_results == 100 %}selected{% endif %}>100</option>
+    </select>
+
+    <button type="submit" class="btn">Search</button>
+
+</form>
+
+{% if papers %}
+
+    <div class="result-header">
+        <p class="result-count">
+            Found {{ papers|length }} paper(s) for "<strong>{{ last_query }}</strong>"
+            — sorted by citation count
+        </p>
+
+        <!-- Export to CSV — same pattern as ArXiv bot -->
+        <div class="action-buttons">
+            <form method="POST" action="/semantic/export">
+                <button type="submit" class="btn btn-outline">📋 Export to CSV</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="paper-list">
+        {% for paper in papers %}
+        <div class="paper-card">
+
+            <!-- Citation badge — the key feature of this bot -->
+            <div class="paper-card-header">
+                <h3>
+                    <a href="{{ paper.url }}" target="_blank">{{ paper.title }}</a>
+                </h3>
+                <span class="citation-badge" title="Times cited">
+                    ★ {{ paper.citations }} citations
+                </span>
+            </div>
+
+            <p class="paper-meta">
+                {{ paper.year }} &nbsp;|&nbsp;
+                {{ paper.authors | join(", ") }}
+            </p>
+
+            {% if paper.abstract %}
+                <p class="paper-abstract">{{ paper.abstract[:300] }}...</p>
+            {% else %}
+                <p class="paper-abstract no-abstract">Abstract not available.</p>
+            {% endif %}
+
+            <div class="paper-links">
+                <a href="{{ paper.url }}" target="_blank" class="btn btn-outline">Page</a>
+                {% if paper.pdf_url %}
+                    <a href="{{ paper.pdf_url }}" target="_blank" class="btn">PDF</a>
+                {% endif %}
+            </div>
+
+        </div>
+        {% endfor %}
+    </div>
+
+{% elif searched %}
+    <p class="no-results">No papers found. Try different keywords.</p>
+{% endif %}
+
+{% endblock %}

@@ -250,6 +250,120 @@ main h2 {
     font-style: italic;
 }
 
+/* ===== CITATION BADGE (Semantic Scholar) ===== */
+.paper-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 0.4rem;
+}
+
+.paper-card-header h3 {
+    margin-bottom: 0;
+    flex: 1;
+}
+
+.citation-badge {
+    background: #fff8e1;
+    border: 1px solid #f0c040;
+    color: #7a5c00;
+    font-size: 0.78rem;
+    font-weight: bold;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.no-abstract {
+    color: #aaa;
+    font-style: italic;
+}
+
+/* ===== LITERATURE REVIEW RESULT ===== */
+.analysis-result {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.analysis-result h3 {
+    margin-bottom: 1rem;
+    font-size: 1rem;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5rem;
+}
+
+/* Raw text shown while streaming — preserves newlines */
+.analysis-text {
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: #333;
+    white-space: pre-wrap;
+}
+
+/* Rendered markdown styles (applied after streaming completes) */
+.analysis-text h1,
+.analysis-text h2,
+.analysis-text h3 {
+    margin: 1.2rem 0 0.5rem;
+    color: #1a1a2e;
+    font-size: 1rem;
+}
+
+.analysis-text p {
+    margin-bottom: 0.8rem;
+}
+
+.analysis-text ul,
+.analysis-text ol {
+    margin: 0.5rem 0 0.8rem 1.5rem;
+}
+
+.analysis-text li {
+    margin-bottom: 0.3rem;
+}
+
+.analysis-text strong {
+    color: #1a1a2e;
+}
+
+/* Markdown table — the LLM uses these for ranked paper lists */
+.analysis-text table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.85rem;
+}
+
+.analysis-text th {
+    background: #1a1a2e;
+    color: white;
+    padding: 0.5rem 0.8rem;
+    text-align: left;
+}
+
+.analysis-text td {
+    padding: 0.45rem 0.8rem;
+    border-bottom: 1px solid #eee;
+    vertical-align: top;
+}
+
+.analysis-text tr:nth-child(even) td {
+    background: #f9f9f9;
+}
+
+.analysis-text hr {
+    border: none;
+    border-top: 1px solid #eee;
+    margin: 1.2rem 0;
+}
+
 /* ===== FOOTER ===== */
 footer {
     text-align: center;

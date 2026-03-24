@@ -17,7 +17,7 @@ sys.path.insert(0, REPO_ROOT)
 
 from bots.arxiv_bot import search, download_pdfs
 from bots.semantic_scholar_bot import search as semantic_search
-from bots.lit_review_bot import analyze, load_papers, build_prompt, TASKS
+from bots.lit_review_bot import load_papers, build_prompt
 
 SEMANTIC_RESULTS_FILE = os.path.join(REPO_ROOT, "semantic_results.json")
 
@@ -201,8 +201,13 @@ def semantic_export():
     )
 
 
-@app.route("/litreview", methods=["GET", "POST"])
+@app.route("/litreview", methods=["GET"])
 def litreview():
+    """
+    Renders the Literature Review Assistant page.
+    Analysis is handled entirely via the /litreview/stream SSE endpoint,
+    triggered by JavaScript — this route only serves the page.
+    """
     # Ask Ollama which models are installed — populates the model dropdown.
     # If Ollama isn't running we fall back to a sensible default list.
     try:
@@ -211,34 +216,10 @@ def litreview():
     except Exception:
         available_models = ["qwen3.5:0.8b"]
 
-    defaults = dict(
-        source="semantic", task="themes", model="qwen3.5:0.8b",
-        max_papers=10, available_models=available_models,
-        result=None, error=None, paper_count=None, task_label=None,
+    return render_template(
+        "lit_review.html",
+        available_models=available_models,
     )
-
-    if request.method == "POST":
-        source     = request.form.get("source", "semantic")
-        task       = request.form.get("task", "themes")
-        model      = request.form.get("model", "qwen3.5:0.8b")
-        max_papers = int(request.form.get("max_papers", 10))
-
-        papers = load_papers(source)
-        if not papers:
-            return render_template("lit_review.html", **{**defaults,
-                "error": f"No saved results for '{source}'. Run a search there first.",
-                "source": source, "task": task, "model": model, "max_papers": max_papers,
-            })
-
-        result = analyze(papers, task=task, model=model, max_papers=max_papers)
-
-        return render_template("lit_review.html", **{**defaults,
-            "source": source, "task": task, "model": model, "max_papers": max_papers,
-            "result": result, "paper_count": min(len(papers), max_papers),
-            "task_label": TASKS.get(task, task),
-        })
-
-    return render_template("lit_review.html", **defaults)
 
 
 @app.route("/litreview/stream")

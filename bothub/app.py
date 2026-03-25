@@ -19,6 +19,7 @@ from bots.arxiv_bot import search, download_pdfs
 from bots.semantic_scholar_bot import search as semantic_search
 from bots.lit_review_bot import load_papers, build_prompt, SYSTEM_MESSAGE
 from bots.ieee_bot import search as ieee_search
+from bots.merge_bot import merge_all
 
 # Load .env file if present (IEEE_API_KEY etc.)
 try:
@@ -206,6 +207,36 @@ def semantic_export():
         output.getvalue(),
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=semantic_results.csv"}
+    )
+
+
+@app.route("/merge", methods=["GET", "POST"])
+def merge():
+    """
+    Merge & Deduplicate page.
+    GET  — shows current source counts, no merge yet.
+    POST — triggers the merge and shows results.
+    """
+    from bots.merge_bot import SOURCE_FILES
+    import os as _os
+
+    # Count how many papers are in each source file (for the summary line)
+    source_counts = {}
+    for source, filepath in SOURCE_FILES.items():
+        if _os.path.exists(filepath):
+            with open(filepath, encoding="utf-8") as f:
+                source_counts[source] = len(json.load(f))
+        else:
+            source_counts[source] = 0
+
+    result = None
+    if request.method == "POST":
+        result = merge_all()
+
+    return render_template(
+        "merge.html",
+        source_counts=source_counts,
+        result=result,
     )
 
 

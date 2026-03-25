@@ -392,6 +392,65 @@ main h2 {
     font-size: 0.82rem;
 }
 
+/* ===== MERGE STATS BAR ===== */
+.merge-stats {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.stat-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 80px;
+}
+
+.stat-box-highlight .stat-number {
+    color: #0077cc;
+}
+
+.stat-number {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #1a1a2e;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 0.2rem;
+    text-align: center;
+}
+
+.stat-arrow {
+    font-size: 1.4rem;
+    color: #ccc;
+}
+
+/* Source tags shown on merged paper cards */
+.source-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: bold;
+    padding: 0.1rem 0.45rem;
+    border-radius: 10px;
+    margin-right: 0.3rem;
+    text-transform: uppercase;
+}
+
+.source-arxiv    { background: #e8f0fe; color: #1a56db; }
+.source-semantic { background: #fce8e8; color: #c53030; }
+.source-ieee     { background: #e8f4e8; color: #276749; }
+.source-unknown  { background: #f0f0f0; color: #888; }
+
 /* ===== FOOTER ===== */
 footer {
     text-align: center;

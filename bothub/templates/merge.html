@@ -19,6 +19,20 @@
         <strong>IEEE Xplore</strong> ({{ source_counts.ieee }} papers),
         <strong>OpenAlex</strong> ({{ source_counts.openalex }} papers)
     </p>
+
+    <!-- Accumulate mode: keeps existing merged papers and adds new ones on top.
+         Use this when you ran a different search query and want to combine results
+         without losing the papers from your previous search. -->
+    <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.88rem;
+                  color:#444; width:100%; margin-bottom:0.8rem; cursor:pointer;">
+        <input type="checkbox" name="include_previous" value="1"
+               style="width:16px; height:16px;">
+        <span>
+            <strong>Accumulate across queries</strong> — add new results to existing
+            merged file instead of replacing it
+        </span>
+    </label>
+
     <button type="submit" class="btn">Merge & Deduplicate</button>
 </form>
 
@@ -33,7 +47,18 @@
         <div class="merge-stats">
             <div class="stat-box">
                 <span class="stat-number">{{ result.total_before }}</span>
-                <span class="stat-label">Papers collected</span>
+                {% if result.previous_count and result.previous_count > 0 %}
+                    {# Show the breakdown: existing base + new papers from this search #}
+                    <span class="stat-label">
+                        Papers total<br>
+                        <small style="font-weight:normal;">
+                            {{ result.previous_count }} existing
+                            + {{ result.total_before - result.previous_count }} new
+                        </small>
+                    </span>
+                {% else %}
+                    <span class="stat-label">Papers collected</span>
+                {% endif %}
             </div>
             <div class="stat-arrow">→</div>
             <div class="stat-box stat-box-highlight">

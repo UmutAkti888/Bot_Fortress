@@ -285,7 +285,10 @@ def merge():
 
     result = None
     if request.method == "POST":
-        result = merge_all()
+        # If the "accumulate" checkbox is ticked, keep existing merged papers
+        # as the base and add new results on top (cross-query accumulation).
+        include_previous = "include_previous" in request.form
+        result = merge_all(include_previous=include_previous)
 
     return render_template(
         "merge.html",

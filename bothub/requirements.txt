@@ -2,3 +2,4 @@ flask
 feedparser
 requests
 markdown
+python-dotenv

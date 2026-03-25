@@ -18,6 +18,14 @@ sys.path.insert(0, REPO_ROOT)
 from bots.arxiv_bot import search, download_pdfs
 from bots.semantic_scholar_bot import search as semantic_search
 from bots.lit_review_bot import load_papers, build_prompt, SYSTEM_MESSAGE
+from bots.ieee_bot import search as ieee_search
+
+# Load .env file if present (IEEE_API_KEY etc.)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(REPO_ROOT, ".env"))
+except ImportError:
+    pass  # python-dotenv not installed — keys must be set as system env vars
 
 SEMANTIC_RESULTS_FILE = os.path.join(REPO_ROOT, "semantic_results.json")
 
@@ -198,6 +206,71 @@ def semantic_export():
         output.getvalue(),
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=semantic_results.csv"}
+    )
+
+
+@app.route("/ieee", methods=["GET", "POST"])
+def ieee():
+    api_key_set = bool(os.environ.get("IEEE_API_KEY", ""))
+
+    if request.method == "POST" and api_key_set:
+        raw_keywords = request.form.get("keywords", "")
+        max_results  = int(request.form.get("max_results", 10))
+        keywords     = [kw.strip() for kw in raw_keywords.split(",") if kw.strip()]
+        from_year    = request.form.get("from_year", "").strip()
+        to_year      = request.form.get("to_year",   "").strip()
+        from_year    = int(from_year) if from_year.isdigit() else None
+        to_year      = int(to_year)   if to_year.isdigit()   else None
+
+        try:
+            papers = ieee_search(keywords, max_results=max_results,
+                                 from_year=from_year, to_year=to_year)
+            return render_template(
+                "ieee.html",
+                papers=papers, last_query=raw_keywords,
+                max_results=max_results,
+                from_year=from_year or "", to_year=to_year or "",
+                api_key_set=api_key_set, searched=True,
+            )
+        except Exception as e:
+            return render_template(
+                "ieee.html",
+                papers=[], last_query=raw_keywords, max_results=max_results,
+                from_year=from_year or "", to_year=to_year or "",
+                api_key_set=api_key_set, searched=True, error=str(e),
+            )
+
+    return render_template(
+        "ieee.html",
+        papers=[], last_query="", max_results=10,
+        from_year="", to_year="",
+        api_key_set=api_key_set, searched=False,
+    )
+
+
+@app.route("/ieee/export", methods=["POST"])
+def ieee_export():
+    """Export last IEEE Xplore results as a CSV file."""
+    ieee_results_file = os.path.join(REPO_ROOT, "ieee_results.json")
+    papers = []
+    if os.path.exists(ieee_results_file):
+        with open(ieee_results_file, encoding="utf-8") as f:
+            papers = json.load(f)
+
+    output = io.StringIO()
+    output.write('\ufeff')  # UTF-8 BOM for Excel
+    writer = csv.writer(output)
+    writer.writerow(["Title", "Authors", "Year", "Citations", "Publication", "Abstract", "DOI", "Page", "PDF"])
+    for paper in papers:
+        writer.writerow([
+            paper["title"], ", ".join(paper["authors"]), paper["year"],
+            paper["citations"], paper["publication"], paper["abstract"],
+            paper["doi"], paper["url"], paper["pdf_url"],
+        ])
+    output.seek(0)
+    return Response(
+        output.getvalue(), mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=ieee_results.csv"}
     )
 
 

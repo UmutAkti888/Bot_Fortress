@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}IEEE Xplore — BotHub{% endblock %}
+
+{% block content %}
+
+<h2>📡 IEEE Xplore Search</h2>
+
+{% if not api_key_set %}
+<div class="ollama-status ollama-error" style="display:block; margin-bottom:1.2rem;">
+    ⚠ IEEE API key not configured — add <code>IEEE_API_KEY=your_key</code> to your <code>.env</code> file at the repo root.
+</div>
+{% endif %}
+
+<form method="POST" action="/ieee" class="search-form">
+
+    <label for="keywords">Search keywords</label>
+    <input
+        type="text"
+        id="keywords"
+        name="keywords"
+        placeholder="e.g. SLAM DBSCAN lidar"
+        value="{{ last_query }}"
+        required
+    >
+
+    <!-- Year range filter -->
+    <label>Published year range (optional)</label>
+    <input
+        type="number"
+        name="from_year"
+        placeholder="From (e.g. 2020)"
+        value="{{ from_year }}"
+        min="1872" max="2099"
+        style="width: 160px;"
+    >
+    <input
+        type="number"
+        name="to_year"
+        placeholder="To (e.g. 2025)"
+        value="{{ to_year }}"
+        min="1872" max="2099"
+        style="width: 160px;"
+    >
+
+    <label for="max_results">Max results</label>
+    <select name="max_results" id="max_results">
+        <option value="10"  {% if max_results == 10  %}selected{% endif %}>10</option>
+        <option value="25"  {% if max_results == 25  %}selected{% endif %}>25</option>
+        <option value="50"  {% if max_results == 50  %}selected{% endif %}>50</option>
+        <option value="100" {% if max_results == 100 %}selected{% endif %}>100</option>
+    </select>
+
+    <button type="submit" class="btn" {% if not api_key_set %}disabled{% endif %}>Search</button>
+
+</form>
+
+{% if error %}
+    <p class="download-status" style="background:#fff3cd; border-color:#f0c040; color:#7a5c00;">
+        ⚠ {{ error }}
+    </p>
+{% endif %}
+
+{% if papers %}
+
+    <div class="result-header">
+        <p class="result-count">
+            Found {{ papers|length }} paper(s) for "<strong>{{ last_query }}</strong>"
+            — sorted by citation count
+        </p>
+        <div class="action-buttons">
+            <form method="POST" action="/ieee/export">
+                <button type="submit" class="btn btn-outline">📋 Export to CSV</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="paper-list">
+        {% for paper in papers %}
+        <div class="paper-card">
+
+            <div class="paper-card-header">
+                <h3>
+                    <a href="{{ paper.url }}" target="_blank">{{ paper.title }}</a>
+                </h3>
+                <span class="citation-badge" title="Times cited">
+                    ★ {{ paper.citations }} citations
+                </span>
+            </div>
+
+            <p class="paper-meta">
+                {{ paper.year }}
+                {% if paper.publication %} &nbsp;|&nbsp; {{ paper.publication }}{% endif %}
+                &nbsp;|&nbsp; {{ paper.authors | join(", ") }}
+            </p>
+
+            {% if paper.abstract %}
+                <p class="paper-abstract">{{ paper.abstract[:300] }}...</p>
+            {% else %}
+                <p class="paper-abstract no-abstract">Abstract not available.</p>
+            {% endif %}
+
+            <div class="paper-links">
+                <a href="{{ paper.url }}" target="_blank" class="btn btn-outline">Page</a>
+                {% if paper.pdf_url %}
+                    <a href="{{ paper.pdf_url }}" target="_blank" class="btn">PDF</a>
+                {% endif %}
+                {% if paper.doi %}
+                    <a href="https://doi.org/{{ paper.doi }}" target="_blank" class="btn btn-outline">DOI</a>
+                {% endif %}
+            </div>
+
+        </div>
+        {% endfor %}
+    </div>
+
+{% elif searched %}
+    <p class="no-results">No papers found. Try different keywords.</p>
+{% endif %}
+
+{% endblock %}

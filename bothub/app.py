@@ -294,6 +294,56 @@ def merge():
     )
 
 
+@app.route("/merge/export", methods=["POST"])
+def merge_export():
+    """
+    Export the merged, deduplicated results as a clean CSV file.
+    Strips internal fields (_source, _sources, abs_link, pdf_link, etc.)
+    so the file is compact and readable when fed to an LLM like Claude.
+    Columns: Title, Authors, Year, Citations, Abstract, DOI, Sources
+    """
+    merged_file = os.path.join(REPO_ROOT, "merged_results.json")
+    papers = []
+    if os.path.exists(merged_file):
+        with open(merged_file, encoding="utf-8") as f:
+            papers = json.load(f)
+
+    output = io.StringIO()
+    output.write('\ufeff')  # UTF-8 BOM for Excel
+    writer = csv.writer(output)
+
+    writer.writerow(["Title", "Authors", "Year", "Citations", "Abstract", "DOI", "Sources"])
+
+    for paper in papers:
+        # Year: ArXiv stores "published" (e.g. "2023-01-15"), others store "year" (int)
+        year = paper.get("year") or (paper.get("published") or "")[:4]
+
+        # Abstract: ArXiv calls it "summary", all others call it "abstract"
+        abstract = paper.get("abstract") or paper.get("summary") or ""
+
+        # Sources: after merging, duplicates gain a "_sources" list; single-source
+        # papers only have "_source". We normalise to a readable string either way.
+        sources_list = paper.get("_sources") or [paper.get("_source", "")]
+        sources_str  = ", ".join(s for s in sources_list if s)
+
+        writer.writerow([
+            paper.get("title", ""),
+            ", ".join(paper.get("authors", [])),
+            year,
+            paper.get("citations", ""),
+            abstract,
+            paper.get("doi", ""),
+            sources_str,
+        ])
+
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=merged_results.csv"}
+    )
+
+
 @app.route("/ieee", methods=["GET", "POST"])
 def ieee():
     api_key_set = bool(os.environ.get("IEEE_API_KEY", ""))

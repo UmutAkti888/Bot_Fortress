@@ -47,11 +47,16 @@
             </div>
         </div>
 
-        <p style="font-size:0.88rem; color:#555; margin-bottom:1.5rem;">
-            Merged results saved to <code>merged_results.json</code>.
-            You can now run the <a href="/litreview">Lit Review Assistant</a>
-            with source set to <strong>"Merged results"</strong>.
-        </p>
+        <div class="result-header" style="margin-bottom:1.5rem;">
+            <p style="font-size:0.88rem; color:#555;">
+                Merged results saved to <code>merged_results.json</code>.
+                You can now run the <a href="/litreview">Lit Review Assistant</a>
+                with source set to <strong>"Merged results"</strong>.
+            </p>
+            <form method="POST" action="/merge/export">
+                <button type="submit" class="btn btn-outline">📋 Export Merged CSV</button>
+            </form>
+        </div>
 
         <!-- Paper list -->
         <div class="paper-list">

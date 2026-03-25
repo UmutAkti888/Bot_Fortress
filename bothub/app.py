@@ -174,7 +174,12 @@ def semantic():
         max_results  = int(request.form.get("max_results", 10))
         keywords     = [kw.strip() for kw in raw_keywords.split(",") if kw.strip()]
 
-        papers = semantic_search(keywords, max_results=max_results)
+        try:
+            papers = semantic_search(keywords, max_results=max_results)
+            error  = None
+        except Exception as e:
+            papers = []
+            error  = str(e)
 
         return render_template(
             "semantic_scholar.html",
@@ -182,11 +187,12 @@ def semantic():
             last_query=raw_keywords,
             max_results=max_results,
             searched=True,
+            error=error,
         )
 
     return render_template(
         "semantic_scholar.html",
-        papers=[], last_query="", max_results=10, searched=False,
+        papers=[], last_query="", max_results=10, searched=False, error=None,
     )
 
 

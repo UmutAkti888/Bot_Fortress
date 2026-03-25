@@ -1,6 +1,8 @@
 # semantic_scholar_bot.py — Semantic Scholar paper search logic.
-# Uses the free Semantic Scholar Graph API (no API key required).
-# Key advantage over ArXiv: returns citation counts, enabling relevance ranking.
+# Uses the Semantic Scholar Graph API.
+# A free API key is available at: https://www.semanticscholar.org/product/api
+# Set SEMANTIC_API_KEY in your .env file for higher rate limits.
+# Without a key, the free tier allows ~100 requests/5 min — easy to hit.
 
 import os
 import json
@@ -9,6 +11,10 @@ from datetime import datetime
 from urllib.parse import urlencode
 
 RESULTS_FILE = os.path.join(os.path.dirname(__file__), "..", "semantic_results.json")
+
+# Optional API key — massively increases rate limits.
+# Get one free at: https://www.semanticscholar.org/product/api
+SEMANTIC_API_KEY = os.environ.get("SEMANTIC_API_KEY", "")
 
 # Fields we request from the API — each one costs a bit of response size,
 # so we only ask for what we actually use.
@@ -20,6 +26,7 @@ def search(keywords: list[str], max_results: int = 10) -> list[dict]:
     Search Semantic Scholar for papers matching the given keywords.
     Results are sorted by citation count (highest first) — most impactful papers first.
     Returns metadata only — does NOT download PDFs.
+    Raises RuntimeError on API errors (e.g. rate limit) so the UI can display them.
     """
 
     # Semantic Scholar uses plain space-separated terms, not AND logic.
@@ -33,14 +40,29 @@ def search(keywords: list[str], max_results: int = 10) -> list[dict]:
     }
     url = "https://api.semanticscholar.org/graph/v1/paper/search?" + urlencode(params)
 
+    # Include API key header if configured — dramatically increases rate limits
+    headers = {}
+    if SEMANTIC_API_KEY:
+        headers["x-api-key"] = SEMANTIC_API_KEY
+
     print(f"[S2 Bot] Querying: {url}")
 
     try:
-        response = requests.get(url, timeout=15)
-        response.raise_for_status()
+        response = requests.get(url, headers=headers, timeout=20)
     except requests.RequestException as e:
-        print(f"[S2 Bot] Request failed: {e}")
-        return []
+        raise RuntimeError(f"Network error contacting Semantic Scholar: {e}")
+
+    # Raise a clear error for HTTP failures (429 rate limit, 5xx server errors, etc.)
+    if response.status_code == 429:
+        raise RuntimeError(
+            "Semantic Scholar rate limit reached (HTTP 429). "
+            "Wait a minute and try again, or add a free SEMANTIC_API_KEY to your .env file. "
+            "Get one at: https://www.semanticscholar.org/product/api"
+        )
+    if not response.ok:
+        raise RuntimeError(
+            f"Semantic Scholar API returned HTTP {response.status_code}: {response.text[:200]}"
+        )
 
     data = response.json()
     papers_raw = data.get("data", [])

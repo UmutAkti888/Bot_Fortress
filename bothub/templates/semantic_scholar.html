@@ -82,6 +82,10 @@
         {% endfor %}
     </div>
 
+{% elif error %}
+    <p class="download-status" style="background:#fff3cd; border-color:#f0c040; color:#7a5c00;">
+        ⚠ {{ error }}
+    </p>
 {% elif searched %}
     <p class="no-results">No papers found. Try different keywords.</p>
 {% endif %}

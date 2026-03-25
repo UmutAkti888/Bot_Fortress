@@ -8,6 +8,7 @@ papers/
 results.json
 semantic_results.json
 ieee_results.json
+openalex_results.json
 merged_results.json
 
 # Python artifacts

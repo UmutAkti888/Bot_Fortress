@@ -449,6 +449,7 @@ main h2 {
 .source-arxiv    { background: #e8f0fe; color: #1a56db; }
 .source-semantic { background: #fce8e8; color: #c53030; }
 .source-ieee     { background: #e8f4e8; color: #276749; }
+.source-openalex { background: #fef3e8; color: #b45309; }
 .source-unknown  { background: #f0f0f0; color: #888; }
 
 /* ===== FOOTER ===== */

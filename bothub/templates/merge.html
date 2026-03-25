@@ -6,8 +6,8 @@
 
 <h2>🔀 Merge & Deduplicate</h2>
 <p style="color:#555; margin-bottom:1.5rem;">
-    Combines your last ArXiv, Semantic Scholar, and IEEE Xplore results into one
-    unified list — removing papers that appear in multiple sources.
+    Combines your last ArXiv, Semantic Scholar, IEEE Xplore, and OpenAlex results
+    into one unified list — removing papers that appear in multiple sources.
 </p>
 
 <!-- Trigger button -->
@@ -16,7 +16,8 @@
         Sources available:
         <strong>ArXiv</strong> ({{ source_counts.arxiv }} papers),
         <strong>Semantic Scholar</strong> ({{ source_counts.semantic }} papers),
-        <strong>IEEE Xplore</strong> ({{ source_counts.ieee }} papers)
+        <strong>IEEE Xplore</strong> ({{ source_counts.ieee }} papers),
+        <strong>OpenAlex</strong> ({{ source_counts.openalex }} papers)
     </p>
     <button type="submit" class="btn">Merge & Deduplicate</button>
 </form>

@@ -10,9 +10,10 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Input files — one per search source
 SOURCE_FILES = {
-    "arxiv":    os.path.join(REPO_ROOT, "results.json"),
-    "semantic": os.path.join(REPO_ROOT, "semantic_results.json"),
-    "ieee":     os.path.join(REPO_ROOT, "ieee_results.json"),
+    "arxiv":     os.path.join(REPO_ROOT, "results.json"),
+    "semantic":  os.path.join(REPO_ROOT, "semantic_results.json"),
+    "ieee":      os.path.join(REPO_ROOT, "ieee_results.json"),
+    "openalex":  os.path.join(REPO_ROOT, "openalex_results.json"),
 }
 
 # Output file — the merged, deduplicated result

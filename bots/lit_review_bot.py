@@ -14,6 +14,7 @@ OLLAMA_URL = "http://localhost:11434/api/chat"
 ARXIV_RESULTS    = os.path.join(os.path.dirname(__file__), "..", "results.json")
 SEMANTIC_RESULTS = os.path.join(os.path.dirname(__file__), "..", "semantic_results.json")
 IEEE_RESULTS     = os.path.join(os.path.dirname(__file__), "..", "ieee_results.json")
+OPENALEX_RESULTS = os.path.join(os.path.dirname(__file__), "..", "openalex_results.json")
 MERGED_RESULTS   = os.path.join(os.path.dirname(__file__), "..", "merged_results.json")
 
 # System message sent before every request.
@@ -42,12 +43,13 @@ TASKS = {
 def load_papers(source: str) -> list[dict]:
     """
     Load the last saved search results from disk.
-    source: "arxiv", "semantic", "ieee", or "merged"
+    source: "arxiv", "semantic", "ieee", "openalex", or "merged"
     """
     paths = {
         "arxiv":    ARXIV_RESULTS,
         "semantic": SEMANTIC_RESULTS,
         "ieee":     IEEE_RESULTS,
+        "openalex": OPENALEX_RESULTS,
         "merged":   MERGED_RESULTS,
     }
     path = paths.get(source, SEMANTIC_RESULTS)

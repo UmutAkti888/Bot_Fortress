@@ -20,6 +20,7 @@ from bots.semantic_scholar_bot import search as semantic_search
 from bots.lit_review_bot import load_papers, build_prompt, SYSTEM_MESSAGE
 from bots.ieee_bot import search as ieee_search
 from bots.merge_bot import merge_all
+from bots.openalex_bot import search as openalex_search
 
 # Load .env file if present (IEEE_API_KEY etc.)
 try:
@@ -207,6 +208,59 @@ def semantic_export():
         output.getvalue(),
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=semantic_results.csv"}
+    )
+
+
+@app.route("/openalex", methods=["GET", "POST"])
+def openalex():
+    if request.method == "POST":
+        raw_keywords = request.form.get("keywords", "")
+        max_results  = int(request.form.get("max_results", 10))
+        keywords     = [kw.strip() for kw in raw_keywords.split(",") if kw.strip()]
+        from_year    = request.form.get("from_year", "").strip()
+        to_year      = request.form.get("to_year",   "").strip()
+        from_year    = int(from_year) if from_year.isdigit() else None
+        to_year      = int(to_year)   if to_year.isdigit()   else None
+
+        papers = openalex_search(keywords, max_results=max_results,
+                                 from_year=from_year, to_year=to_year)
+        return render_template(
+            "openalex.html",
+            papers=papers, last_query=raw_keywords,
+            max_results=max_results,
+            from_year=from_year or "", to_year=to_year or "",
+            searched=True,
+        )
+
+    return render_template(
+        "openalex.html",
+        papers=[], last_query="", max_results=10,
+        from_year="", to_year="", searched=False,
+    )
+
+
+@app.route("/openalex/export", methods=["POST"])
+def openalex_export():
+    openalex_file = os.path.join(REPO_ROOT, "openalex_results.json")
+    papers = []
+    if os.path.exists(openalex_file):
+        with open(openalex_file, encoding="utf-8") as f:
+            papers = json.load(f)
+
+    output = io.StringIO()
+    output.write('\ufeff')
+    writer = csv.writer(output)
+    writer.writerow(["Title", "Authors", "Year", "Citations", "Abstract", "DOI", "Page", "PDF"])
+    for paper in papers:
+        writer.writerow([
+            paper["title"], ", ".join(paper["authors"]), paper["year"],
+            paper["citations"], paper["abstract"],
+            paper["doi"], paper["url"], paper["pdf_url"],
+        ])
+    output.seek(0)
+    return Response(
+        output.getvalue(), mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=openalex_results.csv"}
     )
 
 

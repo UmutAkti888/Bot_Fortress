@@ -37,6 +37,25 @@ RESULTS_FILE = os.path.join(REPO_ROOT, "results.json")
 app = Flask(__name__)
 
 
+def _read_papers(filepath: str) -> list:
+    """
+    Load papers from a results JSON file, handling both formats:
+    - Old flat format:  [ {...}, {...} ]            (plain array)
+    - New wrapped format: { "_query": {...}, "papers": [...] }
+
+    Returns an empty list if the file doesn't exist.
+    This helper is used by all export and download routes so that the
+    query-metadata change doesn't break existing functionality.
+    """
+    if not os.path.exists(filepath):
+        return []
+    with open(filepath, encoding="utf-8") as f:
+        data = json.load(f)
+    if isinstance(data, list):
+        return data              # old format
+    return data.get("papers", [])  # new wrapped format
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -82,11 +101,7 @@ def arxiv_download():
     Reads the last search results from results.json and downloads all PDFs.
     Runs synchronously — may take a while for large result sets.
     """
-    papers = []
-    if os.path.exists(RESULTS_FILE):
-        with open(RESULTS_FILE, encoding="utf-8") as f:
-            papers = json.load(f)
-
+    papers = _read_papers(RESULTS_FILE)
     downloaded = download_pdfs(papers)
 
     # Read back the hidden fields the form sent us, so the page re-renders correctly
@@ -114,10 +129,7 @@ def arxiv_export():
     Reads the last search results from results.json and returns a CSV file download.
     Uses only Python stdlib — no extra libraries needed.
     """
-    papers = []
-    if os.path.exists(RESULTS_FILE):
-        with open(RESULTS_FILE, encoding="utf-8") as f:
-            papers = json.load(f)
+    papers = _read_papers(RESULTS_FILE)
 
     # io.StringIO() creates an in-memory text buffer — like a file, but in RAM.
     # This avoids writing a temporary file to disk just to send it to the browser.
@@ -181,10 +193,7 @@ def semantic():
 @app.route("/semantic/export", methods=["POST"])
 def semantic_export():
     """Export last Semantic Scholar results as a CSV file."""
-    papers = []
-    if os.path.exists(SEMANTIC_RESULTS_FILE):
-        with open(SEMANTIC_RESULTS_FILE, encoding="utf-8") as f:
-            papers = json.load(f)
+    papers = _read_papers(SEMANTIC_RESULTS_FILE)
 
     output = io.StringIO()
     output.write('\ufeff')  # UTF-8 BOM for Excel
@@ -242,10 +251,7 @@ def openalex():
 @app.route("/openalex/export", methods=["POST"])
 def openalex_export():
     openalex_file = os.path.join(REPO_ROOT, "openalex_results.json")
-    papers = []
-    if os.path.exists(openalex_file):
-        with open(openalex_file, encoding="utf-8") as f:
-            papers = json.load(f)
+    papers = _read_papers(openalex_file)
 
     output = io.StringIO()
     output.write('\ufeff')
@@ -390,10 +396,7 @@ def ieee():
 def ieee_export():
     """Export last IEEE Xplore results as a CSV file."""
     ieee_results_file = os.path.join(REPO_ROOT, "ieee_results.json")
-    papers = []
-    if os.path.exists(ieee_results_file):
-        with open(ieee_results_file, encoding="utf-8") as f:
-            papers = json.load(f)
+    papers = _read_papers(ieee_results_file)
 
     output = io.StringIO()
     output.write('\ufeff')  # UTF-8 BOM for Excel

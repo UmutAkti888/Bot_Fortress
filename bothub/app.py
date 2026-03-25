@@ -17,7 +17,7 @@ sys.path.insert(0, REPO_ROOT)
 
 from bots.arxiv_bot import search, download_pdfs
 from bots.semantic_scholar_bot import search as semantic_search
-from bots.lit_review_bot import load_papers, build_prompt
+from bots.lit_review_bot import load_papers, build_prompt, SYSTEM_MESSAGE
 
 SEMANTIC_RESULTS_FILE = os.path.join(REPO_ROOT, "semantic_results.json")
 
@@ -213,12 +213,15 @@ def litreview():
     try:
         r = requests.get("http://localhost:11434/api/tags", timeout=3)
         available_models = [m["name"] for m in r.json().get("models", [])]
+        ollama_online = True
     except Exception:
         available_models = ["qwen3.5:0.8b"]
+        ollama_online = False
 
     return render_template(
         "lit_review.html",
         available_models=available_models,
+        ollama_online=ollama_online,
     )
 
 
@@ -244,7 +247,10 @@ def litreview_stream():
                 "http://localhost:11434/api/chat",
                 json={
                     "model":    model,
-                    "messages": [{"role": "user", "content": prompt}],
+                    "messages": [
+                        {"role": "system", "content": SYSTEM_MESSAGE},
+                        {"role": "user",   "content": prompt},
+                    ],
                     "stream":   True,   # Ollama sends one JSON line per token
                 },
                 stream=True,

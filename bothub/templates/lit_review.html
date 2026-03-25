@@ -5,9 +5,16 @@
 {% block content %}
 
 <h2>📚 Literature Review Assistant</h2>
-<p style="color:#555; margin-bottom:1.5rem;">
+<p style="color:#555; margin-bottom:0.8rem;">
     Sends your last search results to a local LLM via Ollama. Fully offline.
 </p>
+
+<!-- Ollama status indicator — value injected by Flask at page load -->
+{% if ollama_online %}
+    <p class="ollama-status ollama-ok">✓ Ollama is running — ready</p>
+{% else %}
+    <p class="ollama-status ollama-error">⚠ Ollama is not running — start it with: <code>ollama serve</code></p>
+{% endif %}
 
 <form id="litreview-form" class="search-form">
 
@@ -35,10 +42,12 @@
 
     <label for="max_papers">Max papers to send</label>
     <select name="max_papers" id="max_papers">
-        <option value="5">5  (fastest)</option>
+        <option value="5">5   (fastest — 0.8B)</option>
         <option value="10" selected>10</option>
-        <option value="15">15</option>
-        <option value="20">20 (recommended max for 0.8B)</option>
+        <option value="20">20  (max for 0.8B)</option>
+        <option value="30">30  (use 4B+)</option>
+        <option value="50">50  (use 4B+)</option>
+        <option value="100">100 (use DeepSeek or large model)</option>
     </select>
 
     <button type="submit" class="btn" id="analyse-btn">Analyse</button>

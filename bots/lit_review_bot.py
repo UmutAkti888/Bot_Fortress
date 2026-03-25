@@ -14,13 +14,26 @@ OLLAMA_URL = "http://localhost:11434/api/chat"
 ARXIV_RESULTS    = os.path.join(os.path.dirname(__file__), "..", "results.json")
 SEMANTIC_RESULTS = os.path.join(os.path.dirname(__file__), "..", "semantic_results.json")
 
+# System message sent before every request.
+# This sets the model's behaviour globally — no conversational openers,
+# no "Of course", no "I have identified". Just structured output.
+SYSTEM_MESSAGE = (
+    "You are a formal academic research assistant writing a literature review. "
+    "Always respond with structured, direct analysis. "
+    "Never begin with conversational phrases such as 'Of course', 'Certainly', "
+    "'Sure', 'I have identified', 'Based on the provided', or similar openers. "
+    "Start immediately with the analysis content. "
+    "Use markdown formatting: headers (###), bullet points, bold for key terms, "
+    "and tables where appropriate."
+)
+
 # Available analysis tasks — shown as options in the UI
 TASKS = {
-    "themes":   "Identify the main research themes across these papers and explain how they relate to each other.",
-    "priority": "Rank these papers by importance for a literature review. Explain why the top ones are critical to read.",
-    "gaps":     "Based on these papers, identify research gaps and open questions the field has not addressed yet.",
-    "summary":  "Write a one-sentence summary for each paper capturing its core contribution.",
-    "critique": "Critically evaluate these papers. Which claims are well-supported? Which methodologies seem weak?",
+    "themes":   "Identify the main research themes across these papers. For each theme, explain what it covers and how it connects to the others.",
+    "priority": "Rank these papers by importance for a literature review. For each, state why it is or is not critical to read.",
+    "gaps":     "Identify research gaps and open questions across these papers. What problems remain unsolved? What directions are missing?",
+    "summary":  "Write a one-sentence summary for each paper capturing its core contribution. Number each entry to match the paper list.",
+    "critique": "Critically evaluate these papers. For each, assess whether the claims are well-supported and whether the methodology is sound.",
 }
 
 
@@ -57,10 +70,8 @@ def build_prompt(papers: list[dict], task: str) -> str:
         paper_block += f"\n[{i}] {title} ({year}{cite_str})\n{abstract}\n"
 
     prompt = (
-        f"You are a research assistant helping with an academic literature review.\n\n"
         f"Task: {task_instruction}\n\n"
-        f"Papers:\n{paper_block}\n\n"
-        f"Provide a clear, structured response."
+        f"Papers:\n{paper_block}"
     )
     return prompt
 

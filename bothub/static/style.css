@@ -364,6 +364,34 @@ main h2 {
     margin: 1.2rem 0;
 }
 
+/* ===== OLLAMA STATUS INDICATOR ===== */
+.ollama-status {
+    display: inline-block;
+    padding: 0.35rem 0.9rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    margin-bottom: 1.2rem;
+}
+
+.ollama-ok {
+    background: #e6f4ea;
+    border: 1px solid #a8d5b5;
+    color: #2d6a4f;
+}
+
+.ollama-error {
+    background: #fff3cd;
+    border: 1px solid #f0c040;
+    color: #7a5c00;
+}
+
+.ollama-error code {
+    background: #ffeaa0;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.82rem;
+}
+
 /* ===== FOOTER ===== */
 footer {
     text-align: center;

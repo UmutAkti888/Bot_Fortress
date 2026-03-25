@@ -5,6 +5,7 @@
 import os
 import json
 import requests
+from datetime import datetime
 from urllib.parse import urlencode
 
 RESULTS_FILE = os.path.join(os.path.dirname(__file__), "..", "semantic_results.json")
@@ -72,9 +73,20 @@ def search(keywords: list[str], max_results: int = 10) -> list[dict]:
     # Sort by citation count — most cited papers appear first
     results.sort(key=lambda p: p["citations"], reverse=True)
 
-    # Save metadata to JSON
+    # Wrap results with query metadata so we always know what search produced this file
+    wrapper = {
+        "_query": {
+            "keywords":    keywords,
+            "from_year":   None,   # Semantic Scholar does not support year filters yet
+            "to_year":     None,
+            "max_results": max_results,
+            "source":      "semantic",
+            "timestamp":   datetime.now().isoformat(timespec="seconds"),
+        },
+        "papers": results,
+    }
     with open(RESULTS_FILE, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=2, ensure_ascii=False)
+        json.dump(wrapper, f, indent=2, ensure_ascii=False)
 
     print(f"[S2 Bot] Found {len(results)} papers. Top citation count: {results[0]['citations']}")
     return results

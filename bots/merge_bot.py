@@ -20,6 +20,26 @@ SOURCE_FILES = {
 MERGED_FILE = os.path.join(REPO_ROOT, "merged_results.json")
 
 
+def _read_source_file(filepath: str) -> tuple[list, dict]:
+    """
+    Load a source results file and return (papers, query_meta).
+
+    Handles both file formats:
+    - Old format: plain JSON array  [ {...}, {...} ]
+    - New format: wrapped object    { "_query": {...}, "papers": [...] }
+
+    Returns an empty list and empty dict if the file doesn't exist.
+    """
+    if not os.path.exists(filepath):
+        return [], {}
+    with open(filepath, encoding="utf-8") as f:
+        data = json.load(f)
+    if isinstance(data, list):
+        # Old format — no query metadata available
+        return data, {}
+    return data.get("papers", []), data.get("_query", {})
+
+
 def _normalize_title(title: str) -> str:
     """
     Reduce a title to a comparable form for duplicate detection.
@@ -84,16 +104,14 @@ def merge_all(include_previous=False) -> dict:
         print(f"[Merge Bot] Loaded {previous_count} existing papers as base.")
 
     # ── Step 2: Load new results from each source file ─────────────────────────
-    raw_new = []   # new papers from this search run (before dedup)
-    counts  = {}   # papers per source, for the UI summary line
+    raw_new      = []   # new papers from this search run (before dedup)
+    counts       = {}   # papers per source, for the UI summary line
+    query_meta   = {}   # last query used for each source, for UI display
 
     for source, filepath in SOURCE_FILES.items():
-        if not os.path.exists(filepath):
-            counts[source] = 0
-            continue
-        with open(filepath, encoding="utf-8") as f:
-            papers = json.load(f)
-        counts[source] = len(papers)
+        papers, meta = _read_source_file(filepath)
+        counts[source]     = len(papers)
+        query_meta[source] = meta   # may be {} if file missing or old format
         for p in papers:
             p["_source"] = source   # tag so we know where it came from
         raw_new.extend(papers)
@@ -137,7 +155,8 @@ def merge_all(include_previous=False) -> dict:
 
     return {
         "counts":            counts,
-        "previous_count":    previous_count,   # papers already in merged file
+        "query_meta":        query_meta,        # last search query per source
+        "previous_count":    previous_count,    # papers already in merged file
         "total_before":      total_before,
         "total_after":       len(unique),
         "duplicates_removed": duplicates_removed,

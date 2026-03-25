@@ -271,17 +271,16 @@ def merge():
     GET  — shows current source counts, no merge yet.
     POST — triggers the merge and shows results.
     """
-    from bots.merge_bot import SOURCE_FILES
-    import os as _os
+    from bots.merge_bot import SOURCE_FILES, _read_source_file
 
-    # Count how many papers are in each source file (for the summary line)
+    # Read each source file — handles both old (plain array) and new (wrapped) formats.
+    # We collect paper counts AND the last query metadata for display.
     source_counts = {}
+    source_queries = {}   # last _query block per source, shown under each count
     for source, filepath in SOURCE_FILES.items():
-        if _os.path.exists(filepath):
-            with open(filepath, encoding="utf-8") as f:
-                source_counts[source] = len(json.load(f))
-        else:
-            source_counts[source] = 0
+        papers, meta = _read_source_file(filepath)
+        source_counts[source]  = len(papers)
+        source_queries[source] = meta   # {} if file missing or old format
 
     result = None
     if request.method == "POST":
@@ -293,6 +292,7 @@ def merge():
     return render_template(
         "merge.html",
         source_counts=source_counts,
+        source_queries=source_queries,
         result=result,
     )
 

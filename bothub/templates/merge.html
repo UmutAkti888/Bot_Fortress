@@ -12,13 +12,48 @@
 
 <!-- Trigger button -->
 <form method="POST" action="/merge" class="search-form" style="padding:1rem 1.5rem;">
-    <p style="font-size:0.9rem; color:#444; width:100%; margin-bottom:0.3rem;">
-        Sources available:
-        <strong>ArXiv</strong> ({{ source_counts.arxiv }} papers),
-        <strong>Semantic Scholar</strong> ({{ source_counts.semantic }} papers),
-        <strong>IEEE Xplore</strong> ({{ source_counts.ieee }} papers),
-        <strong>OpenAlex</strong> ({{ source_counts.openalex }} papers)
-    </p>
+    <!-- Source summary table — shows paper count and last search query per source -->
+    <table style="width:100%; font-size:0.88rem; border-collapse:collapse;
+                  margin-bottom:0.8rem;">
+        <thead>
+            <tr style="text-align:left; color:#888; font-weight:normal;
+                       border-bottom:1px solid #e0e0e0;">
+                <th style="padding:0.3rem 0.5rem;">Source</th>
+                <th style="padding:0.3rem 0.5rem;">Papers</th>
+                <th style="padding:0.3rem 0.5rem;">Last query</th>
+                <th style="padding:0.3rem 0.5rem;">When</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for source, label in [
+                ("arxiv",    "ArXiv"),
+                ("semantic", "Semantic Scholar"),
+                ("ieee",     "IEEE Xplore"),
+                ("openalex", "OpenAlex")
+            ] %}
+            {% set meta = source_queries[source] %}
+            <tr style="border-bottom:1px solid #f0f0f0;">
+                <td style="padding:0.35rem 0.5rem;"><strong>{{ label }}</strong></td>
+                <td style="padding:0.35rem 0.5rem;">{{ source_counts[source] }}</td>
+                <td style="padding:0.35rem 0.5rem; color:#555;">
+                    {% if meta and meta.keywords %}
+                        {{ meta.keywords | join(", ") }}
+                        {% if meta.from_year or meta.to_year %}
+                            <span style="color:#999;">
+                                ({{ meta.from_year or "?" }}–{{ meta.to_year or "?" }})
+                            </span>
+                        {% endif %}
+                    {% else %}
+                        <span style="color:#bbb;">—</span>
+                    {% endif %}
+                </td>
+                <td style="padding:0.35rem 0.5rem; color:#aaa; font-size:0.82rem;">
+                    {{ (meta.timestamp or "")[:16].replace("T", " ") if meta else "" }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 
     <!-- Accumulate mode: keeps existing merged papers and adds new ones on top.
          Use this when you ran a different search query and want to combine results

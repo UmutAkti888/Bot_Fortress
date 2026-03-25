@@ -40,6 +40,22 @@ TASKS = {
 }
 
 
+def _read_papers(filepath: str) -> list[dict]:
+    """
+    Load papers from a results JSON file.
+    Handles both formats:
+    - Old: plain array  [ {...}, {...} ]
+    - New: wrapped obj  { "_query": {...}, "papers": [...] }
+    """
+    if not os.path.exists(filepath):
+        return []
+    with open(filepath, encoding="utf-8") as f:
+        data = json.load(f)
+    if isinstance(data, list):
+        return data           # old format
+    return data.get("papers", [])  # new format
+
+
 def load_papers(source: str) -> list[dict]:
     """
     Load the last saved search results from disk.
@@ -53,10 +69,7 @@ def load_papers(source: str) -> list[dict]:
         "merged":   MERGED_RESULTS,
     }
     path = paths.get(source, SEMANTIC_RESULTS)
-    if not os.path.exists(path):
-        return []
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+    return _read_papers(path)
 
 
 def build_prompt(papers: list[dict], task: str) -> str:

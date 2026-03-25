@@ -6,6 +6,7 @@
 import os
 import json
 import requests
+from datetime import datetime
 from urllib.parse import urlencode
 
 OPENALEX_BASE = "https://api.openalex.org/works"
@@ -121,8 +122,20 @@ def search(
             "pdf_url":   pdf_url,
         })
 
+    # Wrap results with query metadata so we always know what search produced this file
+    wrapper = {
+        "_query": {
+            "keywords":    keywords,
+            "from_year":   from_year,
+            "to_year":     to_year,
+            "max_results": max_results,
+            "source":      "openalex",
+            "timestamp":   datetime.now().isoformat(timespec="seconds"),
+        },
+        "papers": results,
+    }
     with open(RESULTS_FILE, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=2, ensure_ascii=False)
+        json.dump(wrapper, f, indent=2, ensure_ascii=False)
 
     print(f"[OpenAlex Bot] Found {len(results)} papers.")
     return results

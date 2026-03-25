@@ -5,6 +5,7 @@ import os
 import json
 import requests
 import feedparser
+from datetime import datetime
 from urllib.parse import urlencode  # Safely encodes special characters in URLs
 
 # Paths are relative to this file's location (Bot_Fortress/bots/).
@@ -73,9 +74,21 @@ def search(
             "pdf_link":  pdf_link,
         })
 
-    # Save metadata to JSON so it persists between sessions
+    # Wrap results in a metadata envelope so we always know what query
+    # produced this file. The "papers" key holds the actual list.
+    wrapper = {
+        "_query": {
+            "keywords":    keywords,
+            "from_year":   from_year,
+            "to_year":     to_year,
+            "max_results": max_results,
+            "source":      "arxiv",
+            "timestamp":   datetime.now().isoformat(timespec="seconds"),
+        },
+        "papers": results,
+    }
     with open(RESULTS_FILE, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=2, ensure_ascii=False)
+        json.dump(wrapper, f, indent=2, ensure_ascii=False)
 
     print(f"[ArXiv Bot] Found {len(results)} papers.")
     return results

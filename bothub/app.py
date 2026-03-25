@@ -146,13 +146,16 @@ def arxiv_export():
     writer.writerow(["Title", "Authors", "Published", "Abstract", "ArXiv Link", "PDF Link"])
 
     for paper in papers:
+        # Filter out None entries — feedparser occasionally returns None for
+        # author names on malformed ArXiv entries, which breaks str.join().
+        authors_str = ", ".join(a for a in paper.get("authors", []) if a)
         writer.writerow([
-            paper["title"],
-            ", ".join(paper["authors"]),
-            paper["published"],
-            paper["summary"],
-            paper["abs_link"],
-            paper["pdf_link"],
+            paper.get("title", ""),
+            authors_str,
+            paper.get("published", ""),
+            paper.get("summary", ""),
+            paper.get("abs_link", ""),
+            paper.get("pdf_link", ""),
         ])
 
     output.seek(0)  # Rewind the buffer to the start before reading
@@ -208,14 +211,15 @@ def semantic_export():
     writer.writerow(["Title", "Authors", "Year", "Citations", "Abstract", "Page", "PDF"])
 
     for paper in papers:
+        authors_str = ", ".join(a for a in paper.get("authors", []) if a)
         writer.writerow([
-            paper["title"],
-            ", ".join(paper["authors"]),
-            paper["year"],
-            paper["citations"],
-            paper["abstract"],
-            paper["url"],
-            paper["pdf_url"],
+            paper.get("title", ""),
+            authors_str,
+            paper.get("year", ""),
+            paper.get("citations", ""),
+            paper.get("abstract", ""),
+            paper.get("url", ""),
+            paper.get("pdf_url", ""),
         ])
 
     output.seek(0)
@@ -341,9 +345,10 @@ def merge_export():
         sources_list = paper.get("_sources") or [paper.get("_source", "")]
         sources_str  = ", ".join(s for s in sources_list if s)
 
+        authors_str = ", ".join(a for a in paper.get("authors", []) if a)
         writer.writerow([
             paper.get("title", ""),
-            ", ".join(paper.get("authors", [])),
+            authors_str,
             year,
             paper.get("citations", ""),
             abstract,

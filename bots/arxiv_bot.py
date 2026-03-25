@@ -57,7 +57,8 @@ def search(
     results = []
     for entry in feed.entries:
         title     = entry.get("title", "No title").replace("\n", " ").strip()
-        authors   = [a.name for a in entry.get("authors", [])]
+        # Filter out None names — feedparser returns None for malformed author entries
+        authors   = [a.name for a in entry.get("authors", []) if a.name]
         summary   = entry.get("summary", "").replace("\n", " ").strip()
         published = entry.get("published", "")[:10]
         abs_link  = entry.get("link", "")

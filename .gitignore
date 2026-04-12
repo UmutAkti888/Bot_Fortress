@@ -10,6 +10,7 @@ semantic_results.json
 ieee_results.json
 openalex_results.json
 merged_results.json
+problem_map.json
 
 # Python artifacts
 __pycache__/

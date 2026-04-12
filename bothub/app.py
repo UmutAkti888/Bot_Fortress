@@ -21,6 +21,7 @@ from bots.lit_review_bot import load_papers, build_prompt, SYSTEM_MESSAGE
 from bots.ieee_bot import search as ieee_search
 from bots.merge_bot import merge_all
 from bots.openalex_bot import search as openalex_search
+from bots.problem_map_bot import extract_problems_stream, load_problem_map
 
 # Load .env file if present (IEEE_API_KEY etc.)
 try:
@@ -518,6 +519,90 @@ def litreview_render():
     raw = request.json.get("text", "")
     html = md_lib.markdown(raw, extensions=["tables"])
     return jsonify({"html": html})
+
+
+@app.route("/problemmap", methods=["GET"])
+def problemmap():
+    """
+    Problem Map page.
+    GET  — shows the form + any previously saved results.
+    Extraction is triggered via the /problemmap/stream SSE endpoint.
+    """
+    try:
+        r = requests.get("http://localhost:11434/api/tags", timeout=3)
+        available_models = [m["name"] for m in r.json().get("models", [])]
+        ollama_online = True
+    except Exception:
+        available_models = ["qwen3.5:0.8b"]
+        ollama_online = False
+
+    # Load any previous problem map result from disk
+    previous = load_problem_map()
+
+    return render_template(
+        "problem_map.html",
+        available_models=available_models,
+        ollama_online=ollama_online,
+        previous=previous,
+    )
+
+
+@app.route("/problemmap/stream")
+def problemmap_stream():
+    """
+    SSE endpoint for the Problem Map extraction pipeline.
+    Processes papers in batches and streams progress events to the browser.
+    Each event is a JSON object:
+      {"type": "progress", "batch": 3, "total": 18, "extracted": 60}
+      {"type": "done", "result": {...}}
+      {"type": "error", "message": "..."}
+    """
+    model      = request.args.get("model", "qwen3.5:0.8b")
+    batch_size = int(request.args.get("batch_size", 20))
+
+    def generate():
+        try:
+            for event in extract_problems_stream(model=model, batch_size=batch_size):
+                yield f"data: {event}\n\n"
+        except Exception as e:
+            import json as _json
+            yield f"data: {_json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control":     "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.route("/problemmap/export", methods=["POST"])
+def problemmap_export():
+    """Export the problem map extractions as a CSV."""
+    data = load_problem_map()
+    extractions = data.get("extractions", [])
+
+    output = io.StringIO()
+    output.write('\ufeff')
+    writer = csv.writer(output)
+    writer.writerow(["Title", "Problem Solved", "Target System", "Solution Approach", "Claimed Benefit"])
+    for e in extractions:
+        writer.writerow([
+            e.get("title", ""),
+            e.get("problem_solved", ""),
+            e.get("target_system", ""),
+            e.get("solution_approach", ""),
+            e.get("claimed_benefit", ""),
+        ])
+
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=problem_map.csv"},
+    )
 
 
 if __name__ == "__main__":

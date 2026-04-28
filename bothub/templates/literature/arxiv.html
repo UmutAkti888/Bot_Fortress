@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}ArXiv Bot — BotHub{% endblock %}
+
+{% block content %}
+
+<h2>📄 ArXiv Paper Fetcher</h2>
+
+<!-- ===== SEARCH FORM =====
+     method="POST" means: when submitted, send data to the server via POST request.
+     action="/arxiv" means: send it to the /arxiv route in app.py.
+     Without action, the form submits to the current URL by default (also fine here).
+-->
+<form method="POST" action="/arxiv" class="search-form">
+
+    <label for="keywords">Search keywords</label>
+
+    <!-- The name="keywords" attribute is how Flask identifies this field.
+         In app.py we'll read it with: request.form["keywords"] -->
+    <input
+        type="text"
+        id="keywords"
+        name="keywords"
+        placeholder="e.g. SLAM, mobile robotics, DBSCAN"
+        value="{{ last_query }}"
+        required
+    >
+
+    <!-- Year range filter — both fields are optional.
+         Leave blank to search across all years. -->
+    <label>Published year range (optional)</label>
+    <input
+        type="number"
+        name="from_year"
+        placeholder="From (e.g. 2020)"
+        value="{{ from_year }}"
+        min="1991" max="2099"
+        style="width: 160px;"
+    >
+    <input
+        type="number"
+        name="to_year"
+        placeholder="To (e.g. 2025)"
+        value="{{ to_year }}"
+        min="1991" max="2099"
+        style="width: 160px;"
+    >
+
+    <label for="max_results">Max results</label>
+    <select name="max_results" id="max_results">
+        <option value="5"   {% if max_results == 5   %}selected{% endif %}>5</option>
+        <option value="10"  {% if max_results == 10  %}selected{% endif %}>10</option>
+        <option value="25"  {% if max_results == 25  %}selected{% endif %}>25</option>
+        <option value="50"  {% if max_results == 50  %}selected{% endif %}>50</option>
+        <option value="100" {% if max_results == 100 %}selected{% endif %}>100</option>
+        <option value="150" {% if max_results == 150 %}selected{% endif %}>150</option>
+        <option value="200" {% if max_results == 200 %}selected{% endif %}>200</option>
+    </select>
+
+    <button type="submit" class="btn">Search</button>
+
+</form>
+
+<!-- ===== RESULTS SECTION =====
+     "papers" is the list we pass in from app.py via render_template.
+     If it's empty or not provided, this section is hidden.
+-->
+{% if download_status %}
+    <p class="download-status">✔ {{ download_status }}</p>
+{% endif %}
+
+{% if papers %}
+
+    <div class="result-header">
+        <p class="result-count">Found {{ papers|length }} paper(s) for "<strong>{{ last_query }}</strong>"</p>
+
+        <div class="action-buttons">
+            <!-- Download All PDFs -->
+            <form method="POST" action="/arxiv/download">
+                <input type="hidden" name="last_query"  value="{{ last_query }}">
+                <input type="hidden" name="max_results" value="{{ max_results }}">
+                <input type="hidden" name="from_year"   value="{{ from_year }}">
+                <input type="hidden" name="to_year"     value="{{ to_year }}">
+                <button type="submit" class="btn btn-outline">⬇ Download All PDFs</button>
+            </form>
+
+            <!-- Export to CSV — triggers a file download in the browser -->
+            <form method="POST" action="/arxiv/export">
+                <button type="submit" class="btn btn-outline">📋 Export to CSV</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="paper-list">
+        {% for paper in papers %}
+        <div class="paper-card">
+
+            <h3><a href="{{ paper.abs_link }}" target="_blank">{{ paper.title }}</a></h3>
+
+            <p class="paper-meta">
+                {{ paper.published }} &nbsp;|&nbsp;
+                {{ paper.authors | join(", ") }}
+            </p>
+
+            <p class="paper-abstract">{{ paper.summary[:300] }}...</p>
+
+            <div class="paper-links">
+                <a href="{{ paper.abs_link }}" target="_blank" class="btn btn-outline">Abstract</a>
+                <a href="{{ paper.pdf_link }}" target="_blank" class="btn">PDF</a>
+            </div>
+
+        </div>
+        {% endfor %}
+    </div>
+
+{% elif searched %}
+    <!-- searched=True but papers is empty means the query returned nothing -->
+    <p class="no-results">No papers found. Try different keywords.</p>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}OpenAlex — BotHub{% endblock %}
+
+{% block content %}
+
+<h2>🌍 OpenAlex Search</h2>
+<p style="color:#555; margin-bottom:1.5rem;">
+    250M+ academic works. Fully open, no API key required.
+    Results sorted by citation count.
+</p>
+
+<form method="POST" action="/openalex" class="search-form">
+
+    <label for="keywords">Search keywords</label>
+    <input
+        type="text"
+        id="keywords"
+        name="keywords"
+        placeholder="e.g. SLAM, LiDAR, DBSCAN"
+        value="{{ last_query }}"
+        required
+    >
+
+    <label>Published year range (optional)</label>
+    <input
+        type="number"
+        name="from_year"
+        placeholder="From (e.g. 2020)"
+        value="{{ from_year }}"
+        min="1800" max="2099"
+        style="width: 160px;"
+    >
+    <input
+        type="number"
+        name="to_year"
+        placeholder="To (e.g. 2025)"
+        value="{{ to_year }}"
+        min="1800" max="2099"
+        style="width: 160px;"
+    >
+
+    <label for="max_results">Max results</label>
+    <select name="max_results" id="max_results">
+        <option value="10"  {% if max_results == 10  %}selected{% endif %}>10</option>
+        <option value="25"  {% if max_results == 25  %}selected{% endif %}>25</option>
+        <option value="50"  {% if max_results == 50  %}selected{% endif %}>50</option>
+        <option value="100" {% if max_results == 100 %}selected{% endif %}>100</option>
+        <option value="150" {% if max_results == 150 %}selected{% endif %}>150</option>
+        <option value="200" {% if max_results == 200 %}selected{% endif %}>200</option>
+    </select>
+
+    <button type="submit" class="btn">Search</button>
+
+</form>
+
+{% if papers %}
+
+    <div class="result-header">
+        <p class="result-count">
+            Found {{ papers|length }} paper(s) for "<strong>{{ last_query }}</strong>"
+            — sorted by citation count
+        </p>
+        <div class="action-buttons">
+            <form method="POST" action="/openalex/export">
+                <button type="submit" class="btn btn-outline">📋 Export to CSV</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="paper-list">
+        {% for paper in papers %}
+        <div class="paper-card">
+
+            <div class="paper-card-header">
+                <h3>
+                    <a href="{{ paper.url }}" target="_blank">{{ paper.title }}</a>
+                </h3>
+                <span class="citation-badge">★ {{ paper.citations }} citations</span>
+            </div>
+
+            <p class="paper-meta">
+                {{ paper.year }} &nbsp;|&nbsp;
+                {{ paper.authors | join(", ") }}
+            </p>
+
+            {% if paper.abstract %}
+                <p class="paper-abstract">{{ paper.abstract[:300] }}...</p>
+            {% else %}
+                <p class="paper-abstract no-abstract">Abstract not available.</p>
+            {% endif %}
+
+            <div class="paper-links">
+                <a href="{{ paper.url }}" target="_blank" class="btn btn-outline">Page</a>
+                {% if paper.pdf_url %}
+                    <a href="{{ paper.pdf_url }}" target="_blank" class="btn">PDF</a>
+                {% endif %}
+                {% if paper.doi %}
+                    <a href="https://doi.org/{{ paper.doi }}" target="_blank" class="btn btn-outline">DOI</a>
+                {% endif %}
+            </div>
+
+        </div>
+        {% endfor %}
+    </div>
+
+{% elif searched %}
+    <p class="no-results">No papers found. Try different keywords.</p>
+{% endif %}
+
+{% endblock %}

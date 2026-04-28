@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}Problem Map — BotHub{% endblock %}
+
+{% block content %}
+
+<h2>🗺 Problem Map</h2>
+<p style="color:#555; margin-bottom:0.5rem;">
+    Extracts what problem each paper solves, what system it targets, and what method it uses.
+    Aggregates into a frequency table so you can see what the field is actually trying to fix —
+    and where your work fits within those documented, recurring problems.
+</p>
+
+{% if ollama_online %}
+    <p class="ollama-status ollama-ok">✓ Ollama is running — ready</p>
+{% else %}
+    <p class="ollama-status ollama-error">⚠ Ollama is not running — start with: <code>ollama serve</code></p>
+{% endif %}
+
+<!-- ── Configuration form ───────────────────────────────────────────── -->
+<div class="search-form" id="config-form">
+
+    <label for="model">Ollama model</label>
+    <select name="model" id="model">
+        {% for m in available_models %}
+        <option value="{{ m }}" {% if "0.8b" in m or "4b" in m %}{% endif %}>{{ m }}</option>
+        {% endfor %}
+    </select>
+
+    <label for="batch_size">Papers per batch</label>
+    <select name="batch_size" id="batch_size">
+        <option value="10">10  (safest for 0.8B)</option>
+        <option value="20" selected>20  (recommended)</option>
+        <option value="30">30  (use 4B+)</option>
+    </select>
+
+    <div style="width:100%; font-size:0.82rem; color:#888; margin-top:-0.2rem;">
+        Tip: 556 papers ÷ 20 per batch = ~28 Ollama calls. Allow 5–15 minutes depending on model.
+        Results are saved to <code>problem_map.json</code> and survive page reloads.
+    </div>
+
+    <button type="button" class="btn" id="start-btn">Run Problem Map</button>
+</div>
+
+<!-- ── Progress display ─────────────────────────────────────────────── -->
+<div id="progress-box" style="display:none; background:white; border:1px solid #ddd;
+     border-radius:8px; padding:1.2rem 1.5rem; margin-bottom:1.5rem;">
+
+    <div style="display:flex; justify-content:space-between; margin-bottom:0.6rem;">
+        <span id="progress-label" style="font-size:0.9rem; color:#555;">Starting...</span>
+        <span id="progress-count" style="font-size:0.9rem; font-weight:bold; color:#0077cc;">0 / 0</span>
+    </div>
+
+    <!-- CSS-only progress bar — no JS library needed -->
+    <div style="background:#f0f0f0; border-radius:6px; height:12px; overflow:hidden;">
+        <div id="progress-bar" style="background:#0077cc; height:100%; width:0%;
+             transition:width 0.4s ease; border-radius:6px;"></div>
+    </div>
+</div>
+
+<!-- ── Results ──────────────────────────────────────────────────────── -->
+<div id="results-box" style="display:none;">
+
+    <!-- Stats header -->
+    <div class="merge-stats" style="margin-bottom:1.5rem;">
+        <div class="stat-box">
+            <span class="stat-number" id="stat-total">—</span>
+            <span class="stat-label">Papers processed</span>
+        </div>
+        <div class="stat-arrow">→</div>
+        <div class="stat-box stat-box-highlight">
+            <span class="stat-number" id="stat-extracted">—</span>
+            <span class="stat-label">Successfully extracted</span>
+        </div>
+        <div class="stat-arrow">–</div>
+        <div class="stat-box">
+            <span class="stat-number" id="stat-errors">—</span>
+            <span class="stat-label">Extraction errors</span>
+        </div>
+
+        <div style="margin-left:auto;">
+            <form method="POST" action="/problemmap/export" style="display:inline;">
+                <button type="submit" class="btn btn-outline">📋 Export CSV</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Aggregated frequency tables side by side -->
+    <div style="display:flex; gap:1.5rem; flex-wrap:wrap; margin-bottom:1.5rem;">
+
+        <!-- Top Problems -->
+        <div style="flex:1; min-width:280px; background:white; border:1px solid #ddd;
+             border-radius:8px; padding:1.2rem;">
+            <h3 style="font-size:0.95rem; margin-bottom:1rem; color:#1a1a2e;">
+                Top Problems the Field is Solving
+            </h3>
+            <div id="problems-chart"></div>
+        </div>
+
+        <!-- Top Target Systems -->
+        <div style="flex:1; min-width:240px; background:white; border:1px solid #ddd;
+             border-radius:8px; padding:1.2rem;">
+            <h3 style="font-size:0.95rem; margin-bottom:1rem; color:#1a1a2e;">
+                Target Systems
+            </h3>
+            <div id="systems-chart"></div>
+        </div>
+
+        <!-- Top Approaches -->
+        <div style="flex:1; min-width:240px; background:white; border:1px solid #ddd;
+             border-radius:8px; padding:1.2rem;">
+            <h3 style="font-size:0.95rem; margin-bottom:1rem; color:#1a1a2e;">
+                Methods Used
+            </h3>
+            <div id="approaches-chart"></div>
+        </div>
+    </div>
+
+    <!-- Per-paper extraction table (first 50) -->
+    <div style="background:white; border:1px solid #ddd; border-radius:8px; padding:1.2rem;">
+        <h3 style="font-size:0.95rem; margin-bottom:1rem; color:#1a1a2e;">
+            Per-Paper Extractions <span id="table-subtitle" style="font-weight:normal; color:#888;"></span>
+        </h3>
+        <div style="overflow-x:auto;">
+            <table id="extractions-table" style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+                <thead>
+                    <tr style="background:#1a1a2e; color:white;">
+                        <th style="padding:0.5rem 0.7rem; text-align:left; min-width:200px;">Title</th>
+                        <th style="padding:0.5rem 0.7rem; text-align:left; min-width:160px;">Problem Solved</th>
+                        <th style="padding:0.5rem 0.7rem; text-align:left; min-width:120px;">Target System</th>
+                        <th style="padding:0.5rem 0.7rem; text-align:left; min-width:140px;">Approach</th>
+                        <th style="padding:0.5rem 0.7rem; text-align:left; min-width:140px;">Claimed Benefit</th>
+                    </tr>
+                </thead>
+                <tbody id="extractions-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Load previous results on page open ───────────────────────────── -->
+{% if previous and previous.extractions %}
+<script>
+    // Inject previously saved results so the page is useful on reload
+    const previousResult = {{ previous | tojson }};
+</script>
+{% endif %}
+
+<script>
+    const startBtn      = document.getElementById('start-btn');
+    const progressBox   = document.getElementById('progress-box');
+    const progressBar   = document.getElementById('progress-bar');
+    const progressLabel = document.getElementById('progress-label');
+    const progressCount = document.getElementById('progress-count');
+    const resultsBox    = document.getElementById('results-box');
+
+    // ── Render bar chart from a list of [label, count] pairs ───────────
+    function renderBarChart(containerId, items, total, highlightLabel) {
+        const container = document.getElementById(containerId);
+        if (!items || items.length === 0) {
+            container.innerHTML = '<p style="color:#aaa; font-size:0.85rem;">No data</p>';
+            return;
+        }
+        const maxCount = items[0][1];
+        container.innerHTML = items.map(([label, count]) => {
+            const pct   = Math.round((count / maxCount) * 100);
+            const isKey = highlightLabel && label.includes(highlightLabel);
+            const color = isKey ? '#e63946' : '#0077cc';
+            return `
+              <div style="margin-bottom:0.6rem;">
+                <div style="display:flex; justify-content:space-between;
+                     font-size:0.8rem; margin-bottom:0.2rem;">
+                  <span style="color:#333; text-transform:capitalize;">${label}</span>
+                  <span style="color:#888; font-weight:bold;">${count}</span>
+                </div>
+                <div style="background:#f0f0f0; border-radius:4px; height:8px; overflow:hidden;">
+                  <div style="background:${color}; width:${pct}%; height:100%;
+                       border-radius:4px;"></div>
+                </div>
+              </div>`;
+        }).join('');
+    }
+
+    // ── Render per-paper table (first 50 rows) ──────────────────────────
+    function renderTable(extractions) {
+        const tbody    = document.getElementById('extractions-body');
+        const subtitle = document.getElementById('table-subtitle');
+        const shown    = extractions.slice(0, 50);
+        subtitle.textContent = `(showing first ${shown.length} of ${extractions.length})`;
+
+        tbody.innerHTML = shown.map((e, i) => {
+            const failed = e.problem_solved === 'extraction failed';
+            const bg     = i % 2 === 0 ? '#fff' : '#f9f9f9';
+            const style  = failed ? 'color:#bbb;font-style:italic;' : '';
+            return `<tr style="background:${bg};">
+              <td style="padding:0.4rem 0.7rem; border-bottom:1px solid #eee; ${style}">
+                ${e.title || '—'}</td>
+              <td style="padding:0.4rem 0.7rem; border-bottom:1px solid #eee; ${style}">
+                ${e.problem_solved || '—'}</td>
+              <td style="padding:0.4rem 0.7rem; border-bottom:1px solid #eee; ${style}">
+                ${e.target_system || '—'}</td>
+              <td style="padding:0.4rem 0.7rem; border-bottom:1px solid #eee; ${style}">
+                ${e.solution_approach || '—'}</td>
+              <td style="padding:0.4rem 0.7rem; border-bottom:1px solid #eee; ${style}">
+                ${e.claimed_benefit || '—'}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ── Display results from a result object ────────────────────────────
+    function showResults(result) {
+        document.getElementById('stat-total').textContent     = result.total_papers;
+        document.getElementById('stat-extracted').textContent = result.extracted;
+        document.getElementById('stat-errors').textContent    = result.errors;
+
+        const agg = result.aggregated || {};
+        // Highlight "mapping" as it's your work's core problem
+        renderBarChart('problems-chart',  agg.top_problems  || [], result.total_papers, 'mapping');
+        renderBarChart('systems-chart',   agg.top_systems   || [], result.total_papers, 'mobile robot');
+        renderBarChart('approaches-chart', agg.top_approaches || [], result.total_papers, 'dbscan');
+        renderTable(result.extractions || []);
+
+        resultsBox.style.display = 'block';
+    }
+
+    // ── Load previous results if available ──────────────────────────────
+    if (typeof previousResult !== 'undefined' && previousResult.extractions) {
+        showResults(previousResult);
+    }
+
+    // ── Start extraction on button click ────────────────────────────────
+    startBtn.addEventListener('click', function () {
+        const model      = document.getElementById('model').value;
+        const batch_size = document.getElementById('batch_size').value;
+
+        startBtn.disabled    = true;
+        startBtn.textContent = 'Running...';
+        progressBox.style.display = 'block';
+        resultsBox.style.display  = 'none';
+
+        const params = new URLSearchParams({ model, batch_size });
+        const source = new EventSource('/problemmap/stream?' + params.toString());
+
+        source.onmessage = function (event) {
+            const msg = JSON.parse(event.data);
+
+            if (msg.type === 'progress') {
+                const pct = Math.round((msg.batch / msg.total) * 100);
+                progressBar.style.width    = pct + '%';
+                progressLabel.textContent  = `Batch ${msg.batch} of ${msg.total} — ${msg.extracted} papers extracted`;
+                progressCount.textContent  = `${msg.batch} / ${msg.total}`;
+            }
+
+            if (msg.type === 'batch_error') {
+                progressLabel.textContent = `⚠ Batch ${msg.batch} failed: ${msg.message}`;
+            }
+
+            if (msg.type === 'done') {
+                source.close();
+                progressBar.style.width    = '100%';
+                progressLabel.textContent  = '✓ Extraction complete';
+                startBtn.disabled          = false;
+                startBtn.textContent       = 'Run Problem Map';
+                showResults(msg.result);
+            }
+
+            if (msg.type === 'error') {
+                source.close();
+                progressLabel.textContent = '✗ Error: ' + msg.message;
+                startBtn.disabled         = false;
+                startBtn.textContent      = 'Run Problem Map';
+            }
+        };
+
+        source.onerror = function () {
+            source.close();
+            progressLabel.textContent = '✗ Connection lost. Check that Ollama is running.';
+            startBtn.disabled         = false;
+            startBtn.textContent      = 'Run Problem Map';
+        };
+    });
+</script>
+
+{% endblock %}

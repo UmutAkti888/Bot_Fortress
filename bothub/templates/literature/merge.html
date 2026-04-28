@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Merge & Deduplicate — BotHub{% endblock %}
+
+{% block content %}
+
+<h2>🔀 Merge & Deduplicate</h2>
+<p style="color:#555; margin-bottom:1.5rem;">
+    Combines your last ArXiv, Semantic Scholar, IEEE Xplore, and OpenAlex results
+    into one unified list — removing papers that appear in multiple sources.
+</p>
+
+<!-- Trigger button -->
+<form method="POST" action="/merge" class="search-form" style="padding:1rem 1.5rem;">
+    <!-- Source summary table — shows paper count and last search query per source -->
+    <table style="width:100%; font-size:0.88rem; border-collapse:collapse;
+                  margin-bottom:0.8rem;">
+        <thead>
+            <tr style="text-align:left; color:#888; font-weight:normal;
+                       border-bottom:1px solid #e0e0e0;">
+                <th style="padding:0.3rem 0.5rem;">Source</th>
+                <th style="padding:0.3rem 0.5rem;">Papers</th>
+                <th style="padding:0.3rem 0.5rem;">Last query</th>
+                <th style="padding:0.3rem 0.5rem;">When</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for source, label in [
+                ("arxiv",    "ArXiv"),
+                ("semantic", "Semantic Scholar"),
+                ("ieee",     "IEEE Xplore"),
+                ("openalex", "OpenAlex")
+            ] %}
+            {% set meta = source_queries[source] %}
+            <tr style="border-bottom:1px solid #f0f0f0;">
+                <td style="padding:0.35rem 0.5rem;"><strong>{{ label }}</strong></td>
+                <td style="padding:0.35rem 0.5rem;">{{ source_counts[source] }}</td>
+                <td style="padding:0.35rem 0.5rem; color:#555;">
+                    {% if meta and meta.keywords %}
+                        {{ meta.keywords | join(", ") }}
+                        {% if meta.from_year or meta.to_year %}
+                            <span style="color:#999;">
+                                ({{ meta.from_year or "?" }}–{{ meta.to_year or "?" }})
+                            </span>
+                        {% endif %}
+                    {% else %}
+                        <span style="color:#bbb;">—</span>
+                    {% endif %}
+                </td>
+                <td style="padding:0.35rem 0.5rem; color:#aaa; font-size:0.82rem;">
+                    {{ (meta.timestamp or "")[:16].replace("T", " ") if meta else "" }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Accumulate mode: keeps existing merged papers and adds new ones on top.
+         Use this when you ran a different search query and want to combine results
+         without losing the papers from your previous search. -->
+    <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.88rem;
+                  color:#444; width:100%; margin-bottom:0.8rem; cursor:pointer;">
+        <input type="checkbox" name="include_previous" value="1"
+               style="width:16px; height:16px;">
+        <span>
+            <strong>Accumulate across queries</strong> — add new results to existing
+            merged file instead of replacing it
+        </span>
+    </label>
+
+    <button type="submit" class="btn">Merge & Deduplicate</button>
+</form>
+
+<!-- Result summary after merge -->
+{% if result %}
+    {% if result.error %}
+        <p class="download-status" style="background:#fff3cd; border-color:#f0c040; color:#7a5c00;">
+            ⚠ {{ result.error }}
+        </p>
+    {% else %}
+        <!-- Stats bar -->
+        <div class="merge-stats">
+            <div class="stat-box">
+                <span class="stat-number">{{ result.total_before }}</span>
+                {% if result.previous_count and result.previous_count > 0 %}
+                    {# Show the breakdown: existing base + new papers from this search #}
+                    <span class="stat-label">
+                        Papers total<br>
+                        <small style="font-weight:normal;">
+                            {{ result.previous_count }} existing
+                            + {{ result.total_before - result.previous_count }} new
+                        </small>
+                    </span>
+                {% else %}
+                    <span class="stat-label">Papers collected</span>
+                {% endif %}
+            </div>
+            <div class="stat-arrow">→</div>
+            <div class="stat-box stat-box-highlight">
+                <span class="stat-number">{{ result.total_after }}</span>
+                <span class="stat-label">Unique papers</span>
+            </div>
+            <div class="stat-arrow">−</div>
+            <div class="stat-box">
+                <span class="stat-number">{{ result.duplicates_removed }}</span>
+                <span class="stat-label">Duplicates removed</span>
+            </div>
+        </div>
+
+        <div class="result-header" style="margin-bottom:1.5rem;">
+            <p style="font-size:0.88rem; color:#555;">
+                Merged results saved to <code>merged_results.json</code>.
+                You can now run the <a href="/litreview">Lit Review Assistant</a>
+                with source set to <strong>"Merged results"</strong>.
+            </p>
+            <form method="POST" action="/merge/export">
+                <button type="submit" class="btn btn-outline">📋 Export Merged CSV</button>
+            </form>
+        </div>
+
+        <!-- Paper list -->
+        <div class="paper-list">
+            {% for paper in result.papers %}
+            <div class="paper-card">
+
+                <div class="paper-card-header">
+                    <h3>
+                        {% if paper.url %}
+                            <a href="{{ paper.url }}" target="_blank">{{ paper.title }}</a>
+                        {% elif paper.abs_link %}
+                            <a href="{{ paper.abs_link }}" target="_blank">{{ paper.title }}</a>
+                        {% else %}
+                            {{ paper.title }}
+                        {% endif %}
+                    </h3>
+                    {% if paper.citations %}
+                        <span class="citation-badge">★ {{ paper.citations }} citations</span>
+                    {% endif %}
+                </div>
+
+                <p class="paper-meta">
+                    {{ paper.year or paper.published or "" }}
+                    &nbsp;|&nbsp; {{ paper.authors | join(", ") }}
+                    &nbsp;|&nbsp;
+                    <!-- Show which sources this paper was found in -->
+                    {% set sources = paper._sources if paper._sources is defined else [paper._source] %}
+                    {% for s in sources %}
+                        <span class="source-tag source-{{ s }}">{{ s }}</span>
+                    {% endfor %}
+                </p>
+
+                {% set abstract = paper.abstract or paper.summary or "" %}
+                {% if abstract %}
+                    <p class="paper-abstract">{{ abstract[:300] }}...</p>
+                {% endif %}
+
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endif %}
+
+{% endblock %}

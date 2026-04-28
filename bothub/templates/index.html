@@ -1,72 +1,41 @@
-<!--
-    This template "extends" base.html.
-    That means: take the full base.html layout, but fill in
-    the named sections (blocks) with our own content.
--->
 {% extends "base.html" %}
 
-
-<!-- Override the title block -->
 {% block title %}BotHub — Dashboard{% endblock %}
 
-
-<!-- Fill in the main content block -->
 {% block content %}
 
 <h2>Available Bots</h2>
 
-<!--
-    This is a "bot card" — a small UI tile for each bot.
-    Right now we only have ArXiv. More bots will get their own cards later.
--->
-<div class="bot-grid">
+<div class="bot-grid bot-grid-umbrella">
 
-    <div class="bot-card">
-        <h3>📄 ArXiv Paper Fetcher</h3>
-        <p>Search the ArXiv API by keyword. Downloads matching PDFs and saves metadata to a local JSON file.</p>
-        <a href="/arxiv" class="btn">Open Bot</a>
+    <div class="bot-card bot-card-umbrella">
+        <div class="umbrella-icon">📚</div>
+        <h3>AcademiBot</h3>
+        <p>
+            Full academic literature research suite. Search ArXiv, Semantic Scholar,
+            IEEE Xplore, and OpenAlex. Merge &amp; deduplicate across sources.
+            Run LLM analysis and map research problems across your corpus.
+        </p>
+        <div class="umbrella-tools">
+            <span>ArXiv</span><span>Semantic Scholar</span><span>IEEE Xplore</span>
+            <span>OpenAlex</span><span>Merge</span><span>Lit Review</span><span>Problem Map</span>
+        </div>
+        <a href="/academibot" class="btn btn-umbrella">Open AcademiBot →</a>
     </div>
 
-    <div class="bot-card">
-        <h3>🔬 Semantic Scholar</h3>
-        <p>Search the Semantic Scholar API. Results ranked by citation count — find the most impactful papers first.</p>
-        <a href="/semantic" class="btn">Open Bot</a>
-    </div>
-
-    <div class="bot-card">
-        <h3>📡 IEEE Xplore</h3>
-        <p>Search IEEE's database of peer-reviewed papers. Essential for robotics, control, and EE research. Requires a free API key.</p>
-        <a href="/ieee" class="btn">Open Bot</a>
-    </div>
-
-    <div class="bot-card">
-        <h3>🌍 OpenAlex</h3>
-        <p>250M+ academic works. Fully open, no API key needed. Sorted by citation count with year range filter.</p>
-        <a href="/openalex" class="btn">Open Bot</a>
-    </div>
-
-    <div class="bot-card">
-        <h3>🔀 Merge & Deduplicate</h3>
-        <p>Combine ArXiv, Semantic Scholar, and IEEE results into one unified list. Removes duplicate papers found across sources.</p>
-        <a href="/merge" class="btn">Open Bot</a>
-    </div>
-
-    <div class="bot-card">
-        <h3>📚 Lit Review Assistant</h3>
-        <p>Send your last search results to a local LLM via Ollama. Identifies themes, gaps, and reading priorities. Fully offline.</p>
-        <a href="/litreview" class="btn">Open Bot</a>
-    </div>
-
-    <div class="bot-card">
-        <h3>🗺 Problem Map</h3>
-        <p>Extracts what problem each paper solves and what system it targets. Aggregates into a frequency map showing what the field is actually trying to fix — and where your work fits.</p>
-        <a href="/problemmap" class="btn">Open Bot</a>
-    </div>
-
-    <div class="bot-card">
-        <h3>🧠 Noosphere</h3>
-        <p>Personal task &amp; project tracker. Send tasks via Telegram in plain language — Ollama parses them into structured to-dos stored in SQLite. Groups: PhD, Jobs, Code, Research, Daily.</p>
-        <a href="/noosphere" class="btn">Open Bot</a>
+    <div class="bot-card bot-card-umbrella">
+        <div class="umbrella-icon">🧠</div>
+        <h3>NoosphereBot</h3>
+        <p>
+            Personal task &amp; project tracker. Send tasks via Telegram in plain
+            language — Ollama parses them into structured to-dos stored in SQLite.
+            Groups: PhD Applications, Job Applications, Code Sessions,
+            Research, Emails, Crazy Projects, Daily.
+        </p>
+        <div class="umbrella-tools">
+            <span>Telegram</span><span>Ollama NLP</span><span>SQLite</span><span>Web UI</span>
+        </div>
+        <a href="/noosphere" class="btn btn-umbrella">Open NoosphereBot →</a>
     </div>
 
 </div>

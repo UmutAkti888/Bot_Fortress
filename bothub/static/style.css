@@ -80,6 +80,11 @@ main h2 {
     gap: 1.2rem;
 }
 
+/* Umbrella grid: 2 large cards side by side, stretching to fill the row */
+.bot-grid-umbrella {
+    gap: 1.5rem;
+}
+
 .bot-card {
     background: white;
     border: 1px solid #ddd;
@@ -99,6 +104,62 @@ main h2 {
     color: #555;
     margin-bottom: 1rem;
     line-height: 1.5;
+}
+
+/* ===== UMBRELLA BOT CARDS (home page) ===== */
+/* These are the top-level "AcademiBot" and "NoosphereBot" cards.
+   They're larger and more prominent than regular tool cards. */
+.bot-card-umbrella {
+    flex: 1;                  /* stretch to fill row evenly */
+    min-width: 280px;
+    max-width: 520px;
+    padding: 2rem;
+    border: 1.5px solid #ddd;
+    border-top: 4px solid #0077cc;   /* blue accent bar at top */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.bot-card-umbrella h3 {
+    font-size: 1.4rem;
+    margin-bottom: 0.8rem;
+    color: #1a1a2e;
+}
+
+.bot-card-umbrella p {
+    font-size: 0.92rem;
+    line-height: 1.65;
+    margin-bottom: 1.2rem;
+}
+
+/* Big icon shown above the title on umbrella cards */
+.umbrella-icon {
+    font-size: 2.2rem;
+    margin-bottom: 0.6rem;
+    display: block;
+}
+
+/* Small pill-shaped tags showing what tools are inside this bot */
+.umbrella-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 1.4rem;
+}
+
+.umbrella-tools span {
+    background: #f0f4ff;
+    color: #0077cc;
+    border: 1px solid #c8d9f8;
+    font-size: 0.75rem;
+    font-weight: bold;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+}
+
+/* Slightly larger button for umbrella cards */
+.btn-umbrella {
+    font-size: 0.95rem;
+    padding: 0.55rem 1.3rem;
 }
 
 /* ===== BUTTON ===== */

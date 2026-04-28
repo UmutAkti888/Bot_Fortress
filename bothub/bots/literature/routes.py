@@ -45,6 +45,14 @@ from core.ollama import get_models
 literature_bp = Blueprint("literature", __name__)
 
 
+# ── AcademiBot hub page ───────────────────────────────────────────────────────
+
+@literature_bp.route("/academibot")
+def academibot():
+    """AcademiBot sub-dashboard — shows all literature research tools as cards."""
+    return render_template("academibot.html")
+
+
 # ── Shared helper ────────────────────────────────────────────────────────────
 
 def _read_papers(filepath: str) -> list:

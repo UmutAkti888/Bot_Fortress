@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}AcademiBot — BotHub{% endblock %}
+
+{% block content %}
+
+<!-- Breadcrumb -->
+<p style="font-size:0.85rem; color:#888; margin-bottom:1rem;">
+    <a href="/">Home</a> › AcademiBot
+</p>
+
+<h2>📚 AcademiBot</h2>
+<p style="color:#555; margin-bottom:2rem; line-height:1.6;">
+    Academic literature research suite. Search multiple databases, merge results,
+    and use a local LLM to analyse themes, gaps, and problem patterns across your corpus.
+</p>
+
+<!-- ── Searchers ──────────────────────────────────────────────── -->
+<h3 style="font-size:0.9rem; font-weight:bold; color:#888; text-transform:uppercase;
+    letter-spacing:0.06em; margin-bottom:1rem;">Searchers</h3>
+
+<div class="bot-grid" style="margin-bottom:2rem;">
+
+    <div class="bot-card">
+        <h3>📄 ArXiv</h3>
+        <p>Search the ArXiv preprint API by keyword. Supports year range filter. Downloads PDFs and saves metadata.</p>
+        <a href="/arxiv" class="btn">Open</a>
+    </div>
+
+    <div class="bot-card">
+        <h3>🔬 Semantic Scholar</h3>
+        <p>Search 200M+ papers. Results ranked by citation count — find the most impactful papers first.</p>
+        <a href="/semantic" class="btn">Open</a>
+    </div>
+
+    <div class="bot-card">
+        <h3>📡 IEEE Xplore</h3>
+        <p>IEEE's database of peer-reviewed papers. Essential for robotics, control, and EE research. Requires API key.</p>
+        <a href="/ieee" class="btn">Open</a>
+    </div>
+
+    <div class="bot-card">
+        <h3>🌍 OpenAlex</h3>
+        <p>250M+ academic works. Fully open, no API key needed. Sorted by citation count with year range filter.</p>
+        <a href="/openalex" class="btn">Open</a>
+    </div>
+
+</div>
+
+<!-- ── Analysis Tools ─────────────────────────────────────────── -->
+<h3 style="font-size:0.9rem; font-weight:bold; color:#888; text-transform:uppercase;
+    letter-spacing:0.06em; margin-bottom:1rem;">Analysis Tools</h3>
+
+<div class="bot-grid">
+
+    <div class="bot-card">
+        <h3>🔀 Merge &amp; Deduplicate</h3>
+        <p>Combine results from all sources into one unified list. Removes duplicate papers found across databases. Supports cross-query accumulation.</p>
+        <a href="/merge" class="btn">Open</a>
+    </div>
+
+    <div class="bot-card">
+        <h3>📚 Lit Review Assistant</h3>
+        <p>Send your corpus to a local LLM via Ollama. Identifies themes, gaps, reading priorities, and summaries. Fully offline.</p>
+        <a href="/litreview" class="btn">Open</a>
+    </div>
+
+    <div class="bot-card">
+        <h3>🗺 Problem Map</h3>
+        <p>Extracts what problem each paper solves and what system it targets. Aggregates into a frequency map — see where your work fits in the field.</p>
+        <a href="/problemmap" class="btn">Open</a>
+    </div>
+
+</div>
+
+{% endblock %}

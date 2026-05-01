@@ -513,6 +513,158 @@ main h2 {
 .source-openalex { background: #fef3e8; color: #b45309; }
 .source-unknown  { background: #f0f0f0; color: #888; }
 
+/* ===== NOOSPHEREBOT ===== */
+
+/* Pending count badge next to the page title */
+.noosphere-badge {
+    background: #fff3cd;
+    border: 1px solid #f0c040;
+    color: #7a5c00;
+    font-size: 0.8rem;
+    font-weight: bold;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+}
+
+.noosphere-badge-clear {
+    background: #e6f4ea;
+    border-color: #a8d5b5;
+    color: #2d6a4f;
+}
+
+/* Group section wrapper */
+.task-group {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 1.2rem;
+    overflow: hidden;
+}
+
+/* Group header bar */
+.task-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 1.1rem;
+    background: #f8f8fb;
+    border-bottom: 1px solid #eee;
+}
+
+.task-group-name {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #1a1a2e;
+}
+
+.task-group-count {
+    background: #e8f0fe;
+    color: #1a56db;
+    font-size: 0.75rem;
+    font-weight: bold;
+    padding: 0.15rem 0.55rem;
+    border-radius: 10px;
+}
+
+/* Empty group message */
+.task-group-empty {
+    padding: 0.7rem 1.1rem;
+    font-size: 0.85rem;
+    color: #aaa;
+    font-style: italic;
+}
+
+/* Individual task row */
+.task-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 1.1rem;
+    border-bottom: 1px solid #f2f2f2;
+    gap: 1rem;
+}
+
+.task-item:last-child {
+    border-bottom: none;
+}
+
+/* Greyed-out style for completed tasks */
+.task-done .task-title {
+    color: #bbb;
+    text-decoration: line-through;
+}
+
+.task-done .task-detail,
+.task-done .task-date {
+    color: #ccc;
+}
+
+/* Task text column */
+.task-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    flex: 1;
+    min-width: 0;   /* prevents text overflow breaking layout */
+}
+
+.task-title {
+    font-size: 0.9rem;
+    color: #222;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.task-detail {
+    font-size: 0.78rem;
+    color: #888;
+}
+
+.task-date {
+    font-size: 0.75rem;
+    color: #bbb;
+}
+
+/* Action buttons (complete + delete) */
+.task-actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
+
+/* Small action buttons — not the main .btn class */
+.btn-task {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-task-complete {
+    background: #e6f4ea;
+    color: #2d6a4f;
+}
+
+.btn-task-complete:hover {
+    background: #a8d5b5;
+}
+
+.btn-task-delete {
+    background: #fce8e8;
+    color: #c53030;
+}
+
+.btn-task-delete:hover {
+    background: #f5b7b7;
+}
+
 /* ===== FOOTER ===== */
 footer {
     text-align: center;

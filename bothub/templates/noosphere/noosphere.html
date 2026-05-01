@@ -9,19 +9,127 @@
     <a href="/">Home</a> › NoosphereBot
 </p>
 
-<h2>🧠 NoosphereBot</h2>
-<p style="color:#555; margin-bottom:1.5rem;">
-    Personal task &amp; project tracker. Communicates via Telegram.
-    Stores tasks in SQLite. Parses natural language via Ollama.
-</p>
+<!-- Header row: title + pending badge + show-done toggle -->
+<div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap; margin-bottom:1.5rem;">
+    <h2 style="margin:0;">🧠 NoosphereBot</h2>
 
-<div style="background:white; border:1px solid #ddd; border-radius:8px;
-     padding:2rem; text-align:center; color:#888;">
-    <p style="font-size:1.1rem; margin-bottom:0.5rem;">🚧 Phase 2 — Coming soon</p>
-    <p style="font-size:0.9rem;">
-        The web UI and Telegram connector are being built.
-        For now, the bot module structure is in place.
-    </p>
+    {% if pending_count > 0 %}
+        <span class="noosphere-badge">{{ pending_count }} pending</span>
+    {% else %}
+        <span class="noosphere-badge noosphere-badge-clear">✅ all clear</span>
+    {% endif %}
+
+    <div style="margin-left:auto;">
+        {% if show_done %}
+            <a href="/noosphere" class="btn btn-outline" style="font-size:0.85rem;">
+                Hide completed
+            </a>
+        {% else %}
+            <a href="/noosphere?show_done=1" class="btn btn-outline" style="font-size:0.85rem;">
+                Show completed
+            </a>
+        {% endif %}
+    </div>
 </div>
+
+<!-- ── Add Task Form ──────────────────────────────────────────────────── -->
+<div class="search-form" style="margin-bottom:2rem;">
+    <label style="width:100%; font-size:0.9rem; font-weight:bold; color:#333;">
+        ➕ Add Task
+    </label>
+
+    <form method="POST" action="/noosphere/add"
+          style="display:flex; flex-wrap:wrap; gap:0.7rem; align-items:flex-end; width:100%;">
+
+        <!-- Group selector -->
+        <div style="display:flex; flex-direction:column; gap:0.3rem;">
+            <label for="group" style="font-size:0.8rem; color:#666;">Group</label>
+            <select name="group" id="group" style="min-width:170px;">
+                {% for g in groups %}
+                <option value="{{ g }}">{{ group_emoji[g] }} {{ g }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Task title -->
+        <div style="display:flex; flex-direction:column; gap:0.3rem; flex:1; min-width:200px;">
+            <label for="title" style="font-size:0.8rem; color:#666;">Task</label>
+            <input type="text" name="title" id="title"
+                   placeholder="e.g. Email Karabaşoğlu about thesis"
+                   style="width:100%;" required>
+        </div>
+
+        <!-- Optional detail -->
+        <div style="display:flex; flex-direction:column; gap:0.3rem; flex:1; min-width:160px;">
+            <label for="detail" style="font-size:0.8rem; color:#666;">Detail (optional)</label>
+            <input type="text" name="detail" id="detail"
+                   placeholder="Extra notes…"
+                   style="width:100%;">
+        </div>
+
+        <button type="submit" class="btn" style="align-self:flex-end;">Add</button>
+    </form>
+</div>
+
+<!-- ── Task Groups ────────────────────────────────────────────────────── -->
+{% for group in groups %}
+{% set tasks = grouped[group] %}
+
+<div class="task-group">
+
+    <!-- Group header -->
+    <div class="task-group-header">
+        <span class="task-group-name">{{ group_emoji[group] }} {{ group }}</span>
+        {% if tasks %}
+            <span class="task-group-count">{{ tasks|length }}</span>
+        {% endif %}
+    </div>
+
+    <!-- Tasks in this group -->
+    {% if tasks %}
+        <div class="task-list">
+        {% for task in tasks %}
+            <div class="task-item {% if task.status == 'done' %}task-done{% endif %}">
+
+                <!-- Task content -->
+                <div class="task-info">
+                    <span class="task-title">{{ task.title }}</span>
+                    {% if task.detail %}
+                        <span class="task-detail">{{ task.detail }}</span>
+                    {% endif %}
+                    <span class="task-date">
+                        {{ task.created_at[:10] }}
+                        {% if task.status == 'done' %}&nbsp;·&nbsp;✓ done{% endif %}
+                    </span>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="task-actions">
+                    {% if task.status == 'pending' %}
+                        <!-- Complete button -->
+                        <form method="POST" action="/noosphere/complete/{{ task.id }}" style="display:inline;">
+                            <button type="submit" class="btn-task btn-task-complete" title="Mark done">✓</button>
+                        </form>
+                    {% endif %}
+                    <!-- Delete button -->
+                    <form method="POST" action="/noosphere/delete/{{ task.id }}" style="display:inline;">
+                        <button type="submit" class="btn-task btn-task-delete" title="Delete"
+                                onclick="return confirm('Delete this task?')">×</button>
+                    </form>
+                </div>
+
+            </div>
+        {% endfor %}
+        </div>
+
+    {% else %}
+        <!-- Empty group -->
+        <p class="task-group-empty">
+            {% if show_done %}No tasks.{% else %}✅ Nothing pending.{% endif %}
+        </p>
+    {% endif %}
+
+</div>
+{% endfor %}
 
 {% endblock %}

@@ -19,5 +19,8 @@ __pycache__/
 # Generated files
 bothub/system_map.txt
 
+# SQLite database (contains personal task data)
+bothub.db
+
 # Local Claude settings
 .claude/settings.local.json

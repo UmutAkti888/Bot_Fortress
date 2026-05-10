@@ -9,7 +9,7 @@
     <a href="/">Home</a> › NoosphereBot
 </p>
 
-<!-- Header row: title + pending badge + show-done toggle -->
+<!-- Header row: title + pending badge + done ratio + show-done toggle -->
 <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap; margin-bottom:1.5rem;">
     <h2 style="margin:0;">🧠 NoosphereBot</h2>
 
@@ -17,6 +17,13 @@
         <span class="noosphere-badge">{{ pending_count }} pending</span>
     {% else %}
         <span class="noosphere-badge noosphere-badge-clear">✅ all clear</span>
+    {% endif %}
+
+    <!-- Done / total ratio ─────────────────────────────────────────────── -->
+    {% if total_count > 0 %}
+        <span style="font-size:0.85rem; color:#666;">
+            {{ done_count }}&nbsp;/&nbsp;{{ total_count }} done
+        </span>
     {% endif %}
 
     <div style="margin-left:auto;">
@@ -70,6 +77,98 @@
         <button type="submit" class="btn" style="align-self:flex-end;">Add</button>
     </form>
 </div>
+
+<!-- ── Telegram Status Card ───────────────────────────────────────────── -->
+<div class="tg-card" style="margin-bottom:2rem;">
+
+    <div class="tg-card-header">
+        <span style="font-size:1.1rem;">✈️</span>
+        <strong>Telegram Bot</strong>
+
+        {% if tg_bot %}
+            <!-- Token set AND API call succeeded → bot is reachable -->
+            <span class="tg-status tg-status-ok">● Connected</span>
+        {% elif tg_token_set %}
+            <!-- Token set but API call failed (offline / wrong token) -->
+            <span class="tg-status tg-status-warn">● Unreachable</span>
+        {% else %}
+            <!-- No token in .env at all -->
+            <span class="tg-status tg-status-err">● No token</span>
+        {% endif %}
+    </div>
+
+    <div class="tg-card-body">
+
+        {% if tg_bot %}
+        <!-- ── Connected state ──────────────────────────────────── -->
+        <p style="margin:0 0 0.6rem;">
+            Bot name: <strong>{{ tg_bot.first_name }}</strong>
+            &nbsp;·&nbsp;
+            Open in Telegram:
+            <a href="https://t.me/{{ tg_bot.username }}"
+               target="_blank" rel="noopener"
+               style="font-weight:bold;">@{{ tg_bot.username }}</a>
+        </p>
+        <p style="margin:0 0 1rem; font-size:0.85rem; color:#555;">
+            Search for <strong>@{{ tg_bot.username }}</strong> in Telegram and press
+            <em>Start</em> — or just click the link above on a device where Telegram is installed.
+        </p>
+
+        {% elif tg_token_set %}
+        <!-- ── Token set but unreachable ───────────────────────── -->
+        <p style="margin:0 0 1rem; font-size:0.85rem; color:#b35c00;">
+            <strong>TELEGRAM_BOT_TOKEN</strong> is set in <code>.env</code> but the
+            Telegram API didn't respond. Check your internet connection or verify the token.
+        </p>
+
+        {% else %}
+        <!-- ── No token ─────────────────────────────────────────── -->
+        <p style="margin:0 0 1rem; font-size:0.85rem; color:#999;">
+            Add <code>TELEGRAM_BOT_TOKEN=your_token</code> to your <code>.env</code>
+            file and restart the app to enable Telegram access.
+        </p>
+        {% endif %}
+
+        <!-- ── Quick command reference (always shown) ───────────── -->
+        <details style="font-size:0.85rem;">
+            <summary style="cursor:pointer; color:#4a6cf7; font-weight:bold;">
+                Quick command reference
+            </summary>
+            <table class="tg-cmd-table">
+                <thead>
+                    <tr><th>You type</th><th>What happens</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>tasks</code></td>
+                        <td>List all pending tasks (grouped)</td>
+                    </tr>
+                    <tr>
+                        <td><code>done 5</code></td>
+                        <td>Mark task #5 as complete</td>
+                    </tr>
+                    <tr>
+                        <td><code>del 5</code></td>
+                        <td>Delete task #5 permanently</td>
+                    </tr>
+                    <tr>
+                        <td><code>add Research: read SLAM survey</code></td>
+                        <td>Add to a specific group (fast path)</td>
+                    </tr>
+                    <tr>
+                        <td><em>Email prof about thesis revision</em></td>
+                        <td>Ollama figures out group + title automatically</td>
+                    </tr>
+                    <tr>
+                        <td><em>Apply to the Anthropic AI engineer role</em></td>
+                        <td>→ Job Applications</td>
+                    </tr>
+                </tbody>
+            </table>
+        </details>
+
+    </div><!-- /.tg-card-body -->
+</div><!-- /.tg-card -->
 
 <!-- ── Task Groups ────────────────────────────────────────────────────── -->
 {% for group in groups %}

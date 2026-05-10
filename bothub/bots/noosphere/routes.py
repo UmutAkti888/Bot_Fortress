@@ -9,6 +9,8 @@ Routes:
   POST /noosphere/delete/<id>  → remove a task permanently
 """
 
+import os
+import requests as req
 from flask import Blueprint, render_template, request, redirect
 
 from bots.noosphere.noosphere_bot import (
@@ -17,6 +19,28 @@ from bots.noosphere.noosphere_bot import (
 )
 
 noosphere_bp = Blueprint("noosphere", __name__)
+
+
+def _get_telegram_bot_info() -> dict | None:
+    """
+    Call the Telegram Bot API to get this bot's username and display name.
+    Returns a dict like {"username": "mybot", "first_name": "NoosphereBot"}
+    or None if the token is missing or the call fails.
+    Used to show the bot link on the web UI so the user knows where to find it.
+    """
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    if not token:
+        return None
+    try:
+        r = req.get(
+            f"https://api.telegram.org/bot{token}/getMe",
+            timeout=4,
+        )
+        if r.ok:
+            return r.json().get("result")
+    except Exception:
+        pass
+    return None
 
 
 @noosphere_bp.route("/noosphere")
@@ -29,7 +53,7 @@ def noosphere():
     show_done     = request.args.get("show_done") == "1"
     status_filter = None if show_done else "pending"
 
-    # Load all tasks (filtered by status)
+    # Load tasks for display (filtered by status toggle)
     all_tasks = list_tasks(status=status_filter)
 
     # Bucket tasks into their groups, preserving GROUPS order
@@ -39,11 +63,15 @@ def noosphere():
         if g in grouped:
             grouped[g].append(task)
         else:
-            # Unknown group name — show it anyway under its own heading
             grouped.setdefault(g, []).append(task)
 
-    # Total pending count (always computed regardless of show_done)
-    pending_count = sum(1 for t in list_tasks(status="pending") for _ in [t])
+    # Counts — always from the full table regardless of the display toggle
+    pending_count = len(list_tasks(status="pending"))
+    done_count    = len(list_tasks(status="done"))
+    total_count   = pending_count + done_count
+
+    # Telegram bot info — fetched live so the page shows the correct bot link
+    tg_bot = _get_telegram_bot_info()
 
     return render_template(
         "noosphere/noosphere.html",
@@ -52,6 +80,10 @@ def noosphere():
         group_emoji=GROUP_EMOJI,
         show_done=show_done,
         pending_count=pending_count,
+        done_count=done_count,
+        total_count=total_count,
+        tg_bot=tg_bot,
+        tg_token_set=bool(os.environ.get("TELEGRAM_BOT_TOKEN")),
     )
 
 

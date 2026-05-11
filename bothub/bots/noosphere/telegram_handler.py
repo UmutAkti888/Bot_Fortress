@@ -6,7 +6,15 @@ HOW IT FITS IN:
   The thread polls Telegram for messages continuously until the app exits.
 
 MESSAGE ROUTING — two-stage pipeline:
-  Stage 1 (fast path): keyword/regex matching for common commands.
+  Slash commands (registered with Telegram, show in autocomplete):
+    /add [group:] title  — add a task, group optional
+    /list                — show all pending tasks
+    /done <id>           — mark task complete
+    /del  <id>           — delete task
+    /commands            — quick command reference
+    /help                — usage tips and examples
+
+  Stage 1 (fast path): keyword/regex matching for plain-text messages.
     No LLM needed — instant response.
     Handles: "tasks", "done 3", "del 7", "add daily: buy milk"
 
@@ -15,6 +23,12 @@ MESSAGE ROUTING — two-stage pipeline:
       {"action": "add", "group": "Emails to Send", "title": "email prof"}
     Result is routed to the same CRUD functions as Stage 1.
 
+WHY /add FAILED BEFORE:
+  The old handler used `filters.TEXT & ~filters.COMMAND`, which silently
+  dropped every message starting with `/`.  Any `/add ...` the user typed
+  was ignored.  Now every action has an explicit CommandHandler so
+  slash-prefix input works correctly.
+
 WHY POLLING AND NOT WEBHOOKS:
   Webhooks require a public HTTPS URL. Polling works locally with no setup.
   For a personal tool running on your laptop, polling is the right choice.
@@ -22,6 +36,11 @@ WHY POLLING AND NOT WEBHOOKS:
 THREAD SAFETY NOTE:
   noosphere_bot.py opens and closes a SQLite connection per operation,
   so calling it from a thread is safe — no shared connection objects.
+
+WHAT THIS BOT CANNOT DO:
+  NoosphereBot is a task manager only.  It cannot send emails, browse the
+  web, run code, or take any action outside of adding/listing/completing/
+  deleting tasks in the SQLite database.
 """
 
 import asyncio
@@ -30,7 +49,7 @@ import os
 import re
 
 import requests as req
-from telegram import Update
+from telegram import BotCommand, Update
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
     ContextTypes, filters,
@@ -109,33 +128,165 @@ def _match_group(hint: str) -> str | None:
     return None
 
 
-# ── Command handlers ──────────────────────────────────────────────────────────
+def _parse_add_args(args: list[str]) -> tuple[str, str]:
+    """
+    Parse the argument list from a /add command into (group, title).
 
-async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/start and /help — explain what the bot can do."""
+    Two accepted formats (args is already split on spaces by Telegram):
+      /add Buy milk                     → group=Daily,  title="Buy milk"
+      /add Research: Read SLAM survey   → group=Research, title="Read SLAM survey"
+
+    The colon can be attached to the group word or separated by a space.
+    Returns (group_name, title_string).
+    """
+    if not args:
+        return "Daily", ""
+
+    # Re-join all args into one string for flexible parsing
+    text = " ".join(args).strip()
+
+    # Look for "Group: title" pattern (colon anywhere in the first portion)
+    m = re.match(r"^(.+?):\s*(.+)$", text)
+    if m:
+        group = _match_group(m.group(1).strip()) or "Daily"
+        title = m.group(2).strip()
+    else:
+        group = "Daily"
+        title = text
+
+    return group, title
+
+
+# ── Slash command handlers ────────────────────────────────────────────────────
+
+async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /help — full usage guide with examples.
+    Covers both slash commands and plain-text fast-path syntax.
+    """
     groups_list = "\n".join(f"  {GROUP_EMOJI[g]} {g}" for g in GROUPS)
     help_text = (
-        "*NoosphereBot* — task tracker\n\n"
-        "*Quick commands:*\n"
-        "`tasks` — show all pending tasks\n"
-        "`done <id>` — mark a task complete\n"
-        "`del <id>` — delete a task\n\n"
-        "*Natural language (Ollama parses these):*\n"
-        "Just type what you want — the bot guesses the group.\n"
-        "_Examples:_\n"
-        "  Email the professor about thesis revision\n"
-        "  Apply to the Anthropic AI engineer role\n"
-        "  Read the SLAM survey paper tonight\n\n"
+        "*NoosphereBot — usage guide*\n\n"
+
+        "*Slash commands* (tap `/` to autocomplete):\n"
+        "`/add <title>` — add to Daily\n"
+        "`/add <group>: <title>` — add to a specific group\n"
+        "`/list` — all pending tasks\n"
+        "`/done <id>` — mark task complete\n"
+        "`/del <id>` — delete task permanently\n"
+        "`/commands` — quick command list\n"
+        "`/help` — this message\n\n"
+
+        "*Plain text shortcuts* (no slash needed):\n"
+        "`tasks` — show pending\n"
+        "`done 3` — complete task #3\n"
+        "`del 3` — delete task #3\n"
+        "`add Research: read paper` — add to a group\n\n"
+
+        "*Natural language* (Ollama parses these):\n"
+        "_Email the professor about thesis revision_\n"
+        "_Apply to the Anthropic AI engineer role_\n"
+        "_Read the SLAM survey paper tonight_\n\n"
+
+        "*What this bot CANNOT do:*\n"
+        "Send emails, browse the web, run code, or take any action "
+        "outside of task management.  It is a to-do tracker, not an agent.\n\n"
+
         "*Task groups:*\n" + groups_list
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
 
-# ── Main message handler ──────────────────────────────────────────────────────
+async def cmd_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /commands — one-screen cheatsheet of every available command.
+    Shorter than /help — no examples, just the command signatures.
+    """
+    text = (
+        "*Available commands:*\n\n"
+        "`/add <title>` — add task to Daily\n"
+        "`/add <group>: <title>` — add to specific group\n"
+        "`/list` — show all pending tasks\n"
+        "`/done <id>` — mark task as complete\n"
+        "`/del <id>` — delete task permanently\n"
+        "`/commands` — this list\n"
+        "`/help` — full usage guide with examples\n\n"
+        "Or just type naturally — Ollama will figure out the action and group."
+    )
+    await update.message.reply_text(text, parse_mode="Markdown")
+
+
+async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /add [group:] title
+
+    Examples:
+      /add Buy milk
+      /add Research: Read SLAM survey
+      /add Job Applications: Apply to Anthropic
+    """
+    if not context.args:
+        await update.message.reply_text(
+            "Usage: `/add <title>` or `/add <group>: <title>`\n\n"
+            "Example: `/add Research: Read SLAM survey`",
+            parse_mode="Markdown",
+        )
+        return
+
+    group, title = _parse_add_args(context.args)
+
+    if not title:
+        await update.message.reply_text(
+            "Please provide a task title.\n"
+            "Example: `/add Buy milk`",
+            parse_mode="Markdown",
+        )
+        return
+
+    tid   = add_task(group, title)
+    emoji = GROUP_EMOJI.get(group, "")
+    await update.message.reply_text(
+        f"{emoji} Added to *{group}*\n_{title}_ (#{tid})",
+        parse_mode="Markdown",
+    )
+
+
+async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/list — show all pending tasks."""
+    await update.message.reply_text(pending_summary())
+
+
+async def cmd_done(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/done <id> — mark a task complete."""
+    if not context.args or not context.args[0].isdigit():
+        await update.message.reply_text(
+            "Usage: `/done <task_id>`  — e.g. `/done 5`",
+            parse_mode="Markdown",
+        )
+        return
+    tid = int(context.args[0])
+    complete_task(tid)
+    await update.message.reply_text(f"Done. Task #{tid} marked complete.")
+
+
+async def cmd_del(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/del <id> — delete a task permanently."""
+    if not context.args or not context.args[0].isdigit():
+        await update.message.reply_text(
+            "Usage: `/del <task_id>`  — e.g. `/del 5`",
+            parse_mode="Markdown",
+        )
+        return
+    tid = int(context.args[0])
+    delete_task(tid)
+    await update.message.reply_text(f"Deleted task #{tid}.")
+
+
+# ── Main message handler (plain-text fast path + Ollama NLP) ─────────────────
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Route an incoming text message to the right action.
+    Route a plain-text (non-slash) message to the right action.
 
     STAGE 1 — Fast-path keyword matching (no LLM):
       - "tasks" / "pending"         → pending_summary()
@@ -239,13 +390,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     else:
         await update.message.reply_text(
-            "I couldn't work out what to do with that.\n"
-            "Try: `tasks`, `done <id>`, or just describe what you want to add.",
+            "I couldn't work out what to do with that.\n\n"
+            "Try `/add <title>`, `/list`, `/done <id>`, or just describe a task.\n"
+            "Type `/commands` to see everything available.\n\n"
+            "_Note: this bot manages tasks only — it cannot send emails or "
+            "perform actions outside the task list._",
             parse_mode="Markdown",
         )
 
 
 # ── Entry point (called from app.py in a daemon thread) ──────────────────────
+
+async def _setup_commands(application: Application) -> None:
+    """
+    Register slash commands with Telegram so they appear in the
+    autocomplete menu when the user types '/' in the chat.
+    Called automatically by python-telegram-bot via post_init.
+    """
+    await application.bot.set_my_commands([
+        BotCommand("add",      "Add a task: /add [group:] title"),
+        BotCommand("list",     "Show all pending tasks"),
+        BotCommand("done",     "Mark task done: /done <id>"),
+        BotCommand("del",      "Delete a task: /del <id>"),
+        BotCommand("commands", "Quick command reference"),
+        BotCommand("help",     "Full usage guide with examples"),
+    ])
+
 
 def start_telegram_bot():
     """
@@ -261,12 +431,27 @@ def start_telegram_bot():
         return
 
     async def _run():
-        bot_app = Application.builder().token(token).build()
-        bot_app.add_handler(CommandHandler("start", cmd_start))
-        bot_app.add_handler(CommandHandler("help",  cmd_start))
+        bot_app = (
+            Application.builder()
+            .token(token)
+            .post_init(_setup_commands)   # registers commands in Telegram's menu
+            .build()
+        )
+
+        # ── Slash command handlers ────────────────────────────────────────────
+        bot_app.add_handler(CommandHandler("start",    cmd_help))
+        bot_app.add_handler(CommandHandler("help",     cmd_help))
+        bot_app.add_handler(CommandHandler("commands", cmd_commands))
+        bot_app.add_handler(CommandHandler("add",      cmd_add))
+        bot_app.add_handler(CommandHandler("list",     cmd_list))
+        bot_app.add_handler(CommandHandler("done",     cmd_done))
+        bot_app.add_handler(CommandHandler("del",      cmd_del))
+
+        # ── Plain-text handler (fast path + Ollama NLP) ───────────────────────
         bot_app.add_handler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
         )
+
         print("[Telegram] Bot online — polling for messages.")
         await bot_app.run_polling(stop_signals=None)
 

@@ -39,7 +39,7 @@ def init_db():
     conn = get_connection()
     c = conn.cursor()
 
-    # ── Noosphere bot ────────────────────────────────────────────────────────
+    # ── Noosphere bot — tasks ────────────────────────────────────────────────
     # Stores tasks/to-dos sent via Telegram or the web UI.
     c.execute("""
         CREATE TABLE IF NOT EXISTS tasks (
@@ -50,6 +50,19 @@ def init_db():
             status      TEXT    NOT NULL DEFAULT 'pending',
             created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
             updated_at  TEXT
+        )
+    """)
+
+    # ── Noosphere bot — briefing subscribers ─────────────────────────────────
+    # Anyone who sends /start to the Telegram bot gets registered here.
+    # The morning briefing job iterates this table to know who to message.
+    # INSERT OR REPLACE means re-running /start updates name/username safely.
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS briefing_subscribers (
+            chat_id       INTEGER PRIMARY KEY,
+            first_name    TEXT,
+            username      TEXT,
+            subscribed_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
     """)
 

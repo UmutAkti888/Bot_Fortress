@@ -1,0 +1,336 @@
+{
+  "_about": {
+    "purpose": "Known-pairs safety net for AcademiBot's cross-source deduplication (merge_bot.py).",
+    "field_shapes": {
+      "arxiv":    "id, title, authors[], summary, published(YYYY-MM-DD), abs_link, pdf_link  — NO doi, NO year",
+      "semantic": "id, title, authors[], year, abstract, citations, url, pdf_url, arxiv_id  — NO top-level doi (unused in externalIds)",
+      "ieee":     "id, title, authors[], year, abstract, citations, doi, url, pdf_url, publication",
+      "openalex": "id, title, authors[], year, abstract, citations, doi, url, pdf_url"
+    },
+    "dedup_rule_under_test": "Two papers are duplicates if (both DOIs present AND normalized-equal) OR (both titles present AND normalized-equal). DOI is checked first, title is the fallback.",
+    "known_weakness": "ArXiv has no DOI and Semantic Scholar does not extract one, so for those sources dedup relies on exact normalized-title equality. Two genuinely different papers that share a generic title collide, and a title match is NOT blocked even when both papers carry DIFFERENT DOIs."
+  },
+
+  "should_dedupe": [
+    {
+      "reason": "Same paper: ArXiv preprint vs IEEE published version. ArXiv has no DOI, so DOI matching cannot help — this MUST match on normalized title.",
+      "a": {
+        "_source": "arxiv",
+        "id": "1609.05215",
+        "title": "Real-Time Loop Closure in 2D LIDAR SLAM",
+        "authors": ["Wolfgang Hess", "Damon Kohler", "Holger Rapp", "Daniel Andor"],
+        "summary": "We present a real-time loop closure method for 2D LIDAR SLAM using submaps and branch-and-bound scan matching.",
+        "published": "2016-09-16",
+        "abs_link": "https://arxiv.org/abs/1609.05215",
+        "pdf_link": "https://arxiv.org/pdf/1609.05215"
+      },
+      "b": {
+        "_source": "ieee",
+        "id": "7487258",
+        "title": "Real-Time Loop Closure in 2D LIDAR SLAM",
+        "authors": ["W. Hess", "D. Kohler", "H. Rapp", "D. Andor"],
+        "year": "2016",
+        "abstract": "A real-time loop closure approach for 2D LIDAR SLAM.",
+        "citations": 1200,
+        "doi": "10.1109/ICRA.2016.7487258",
+        "url": "https://ieeexplore.ieee.org/document/7487258",
+        "pdf_url": "https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=7487258",
+        "publication": "2016 IEEE International Conference on Robotics and Automation (ICRA)"
+      }
+    },
+    {
+      "reason": "Same paper across IEEE and OpenAlex, matched by DOI. DOI prefix differs (raw '10.1109/...' vs 'https://doi.org/10.1109/...'). Titles are deliberately worded differently so ONLY the DOI path can match — verifies DOI normalization.",
+      "a": {
+        "_source": "ieee",
+        "id": "8460664",
+        "title": "Path Planning for Autonomous Vehicles in Urban Environments",
+        "authors": ["A. Author", "B. Writer"],
+        "year": "2018",
+        "abstract": "Urban path planning for autonomous vehicles.",
+        "citations": 88,
+        "doi": "10.1109/TITS.2018.8460664",
+        "url": "https://ieeexplore.ieee.org/document/8460664",
+        "pdf_url": "",
+        "publication": "IEEE Transactions on Intelligent Transportation Systems"
+      },
+      "b": {
+        "_source": "openalex",
+        "id": "W2890123456",
+        "title": "Motion Planning for Self-Driving Cars in the City",
+        "authors": ["Alice Author", "Bob Writer"],
+        "year": "2018",
+        "abstract": "Planning for self-driving cars in city settings.",
+        "citations": 90,
+        "doi": "https://doi.org/10.1109/TITS.2018.8460664",
+        "url": "https://openalex.org/W2890123456",
+        "pdf_url": ""
+      }
+    },
+    {
+      "reason": "Same paper, no DOIs on either side. Title differs only in casing and punctuation ('SLAM: A Survey of Techniques' vs 'Slam - A Survey Of Techniques'). Must match after title normalization.",
+      "a": {
+        "_source": "arxiv",
+        "id": "2002.00001",
+        "title": "SLAM: A Survey of Techniques",
+        "authors": ["C. Researcher"],
+        "summary": "A survey of SLAM techniques.",
+        "published": "2020-02-01",
+        "abs_link": "https://arxiv.org/abs/2002.00001",
+        "pdf_link": "https://arxiv.org/pdf/2002.00001"
+      },
+      "b": {
+        "_source": "semantic",
+        "id": "s2-aaa111",
+        "title": "Slam - A Survey Of Techniques",
+        "authors": ["Carla Researcher"],
+        "year": "2020",
+        "abstract": "Survey of SLAM techniques.",
+        "citations": 45,
+        "url": "https://www.semanticscholar.org/paper/aaa111",
+        "pdf_url": "",
+        "arxiv_id": "2002.00001"
+      }
+    },
+    {
+      "reason": "Same paper, identical title but author names formatted differently ('J. Smith' vs 'John Smith'). Dedup keys on title only, so this must still match.",
+      "a": {
+        "_source": "semantic",
+        "id": "s2-bbb222",
+        "title": "Deep Reinforcement Learning for Robotic Manipulation",
+        "authors": ["J. Smith", "M. Doe"],
+        "year": "2019",
+        "abstract": "DRL for robotic manipulation.",
+        "citations": 300,
+        "url": "https://www.semanticscholar.org/paper/bbb222",
+        "pdf_url": "",
+        "arxiv_id": "1901.02222"
+      },
+      "b": {
+        "_source": "openalex",
+        "id": "W2900000001",
+        "title": "Deep Reinforcement Learning for Robotic Manipulation",
+        "authors": ["John Smith", "Mary Doe"],
+        "year": "2019",
+        "abstract": "Deep RL for manipulation tasks.",
+        "citations": 305,
+        "doi": "10.1109/LRA.2019.2900001",
+        "url": "https://openalex.org/W2900000001",
+        "pdf_url": ""
+      }
+    },
+    {
+      "reason": "Same paper across IEEE and OpenAlex, matched by DOI where only the CASE differs ('10.1109/ICRA...' vs '10.1109/icra...'). Verifies case-insensitive DOI normalization.",
+      "a": {
+        "_source": "ieee",
+        "id": "9012345",
+        "title": "Visual-Inertial Odometry with Tightly-Coupled Fusion",
+        "authors": ["D. Vio"],
+        "year": "2020",
+        "abstract": "Tightly-coupled VIO.",
+        "citations": 150,
+        "doi": "10.1109/ICRA.2020.9012345",
+        "url": "https://ieeexplore.ieee.org/document/9012345",
+        "pdf_url": "",
+        "publication": "ICRA 2020"
+      },
+      "b": {
+        "_source": "openalex",
+        "id": "W3010000002",
+        "title": "Visual Inertial Odometry with Tightly Coupled Fusion",
+        "authors": ["Dave Vio"],
+        "year": "2020",
+        "abstract": "VIO with tight coupling.",
+        "citations": 152,
+        "doi": "10.1109/icra.2020.9012345",
+        "url": "https://openalex.org/W3010000002",
+        "pdf_url": ""
+      }
+    },
+    {
+      "reason": "EDGE — missing DOI on one side. ArXiv preprint (no DOI) vs OpenAlex record (has DOI) of the same paper; identical title carries the match.",
+      "a": {
+        "_source": "arxiv",
+        "id": "2103.14030",
+        "title": "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows",
+        "authors": ["Ze Liu", "Yutong Lin"],
+        "summary": "A hierarchical vision transformer using shifted windows.",
+        "published": "2021-03-25",
+        "abs_link": "https://arxiv.org/abs/2103.14030",
+        "pdf_link": "https://arxiv.org/pdf/2103.14030"
+      },
+      "b": {
+        "_source": "openalex",
+        "id": "W3138516305",
+        "title": "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows",
+        "authors": ["Ze Liu", "Yutong Lin"],
+        "year": "2021",
+        "abstract": "Hierarchical vision transformer with shifted windows.",
+        "citations": 20000,
+        "doi": "10.1109/ICCV48922.2021.00986",
+        "url": "https://openalex.org/W3138516305",
+        "pdf_url": ""
+      }
+    },
+    {
+      "reason": "EDGE — missing abstract on one side, but DOIs match exactly. DOI path must dedupe regardless of the empty abstract.",
+      "a": {
+        "_source": "ieee",
+        "id": "8798888",
+        "title": "A Benchmark for Point Cloud Registration",
+        "authors": ["P. Cloud"],
+        "year": "2019",
+        "abstract": "",
+        "citations": 40,
+        "doi": "10.1109/TPAMI.2019.8798888",
+        "url": "https://ieeexplore.ieee.org/document/8798888",
+        "pdf_url": "",
+        "publication": "IEEE TPAMI"
+      },
+      "b": {
+        "_source": "openalex",
+        "id": "W2960000003",
+        "title": "A Benchmark for Point-Cloud Registration",
+        "authors": ["Peter Cloud"],
+        "year": "2019",
+        "abstract": "A benchmark dataset and protocol for registration.",
+        "citations": 41,
+        "doi": "10.1109/TPAMI.2019.8798888",
+        "url": "https://openalex.org/W2960000003",
+        "pdf_url": ""
+      }
+    }
+  ],
+
+  "should_not_dedupe": [
+    {
+      "reason": "Different papers with similar but NON-identical generic titles ('A Survey of Deep Learning' vs 'A Survey of Deep Learning for Natural Language Processing'). Different DOIs. Normalized titles differ, so current logic correctly keeps them separate.",
+      "a": {
+        "_source": "openalex",
+        "id": "W2001000001",
+        "title": "A Survey of Deep Learning",
+        "authors": ["First Author"],
+        "year": "2015",
+        "abstract": "General survey of deep learning.",
+        "citations": 500,
+        "doi": "10.1000/survey.2015.0001",
+        "url": "https://openalex.org/W2001000001",
+        "pdf_url": ""
+      },
+      "b": {
+        "_source": "openalex",
+        "id": "W2001000002",
+        "title": "A Survey of Deep Learning for Natural Language Processing",
+        "authors": ["Second Author"],
+        "year": "2018",
+        "abstract": "Survey of deep learning applied to NLP.",
+        "citations": 700,
+        "doi": "10.1000/survey.2018.0002",
+        "url": "https://openalex.org/W2001000002",
+        "pdf_url": ""
+      }
+    },
+    {
+      "reason": "KNOWN FALSE POSITIVE — two genuinely different papers that share the exact generic title 'Deep Learning', with DIFFERENT DOIs and different authors/years. A differing DOI should BLOCK a title merge, but current logic falls back to the identical title and wrongly merges them. Expected: NOT duplicate.",
+      "a": {
+        "_source": "ieee",
+        "id": "6000001",
+        "title": "Deep Learning",
+        "authors": ["Yann LeCun", "Yoshua Bengio", "Geoffrey Hinton"],
+        "year": "2015",
+        "abstract": "Review of deep learning (Nature).",
+        "citations": 60000,
+        "doi": "10.1038/nature14539",
+        "url": "https://ieeexplore.ieee.org/document/6000001",
+        "pdf_url": "",
+        "publication": "Nature"
+      },
+      "b": {
+        "_source": "openalex",
+        "id": "W4000000009",
+        "title": "Deep Learning",
+        "authors": ["Some Otherperson"],
+        "year": "2021",
+        "abstract": "A different tutorial paper that happens to be titled 'Deep Learning'.",
+        "citations": 12,
+        "doi": "10.1000/tutorial.2021.9999",
+        "url": "https://openalex.org/W4000000009",
+        "pdf_url": ""
+      }
+    },
+    {
+      "reason": "Clearly different papers: different titles, no shared DOI. Baseline sanity check — must NOT dedupe.",
+      "a": {
+        "_source": "arxiv",
+        "id": "2105.00001",
+        "title": "Monocular Visual Odometry for Ground Vehicles",
+        "authors": ["Mono Author"],
+        "summary": "Monocular VO for ground vehicles.",
+        "published": "2021-05-01",
+        "abs_link": "https://arxiv.org/abs/2105.00001",
+        "pdf_link": "https://arxiv.org/pdf/2105.00001"
+      },
+      "b": {
+        "_source": "arxiv",
+        "id": "2105.00002",
+        "title": "Stereo Depth Estimation with Cost Volume Filtering",
+        "authors": ["Stereo Author"],
+        "summary": "Stereo depth estimation approach.",
+        "published": "2021-05-02",
+        "abs_link": "https://arxiv.org/abs/2105.00002",
+        "pdf_link": "https://arxiv.org/pdf/2105.00002"
+      }
+    },
+    {
+      "reason": "KNOWN FALSE POSITIVE — two different papers sharing the exact title 'Introduction to Robotics', neither with a DOI (both ArXiv/S2 style). Current title-only logic wrongly merges them. Expected: NOT duplicate.",
+      "a": {
+        "_source": "arxiv",
+        "id": "1801.00001",
+        "title": "Introduction to Robotics",
+        "authors": ["Alpha Teacher"],
+        "summary": "Lecture notes, 2018 course.",
+        "published": "2018-01-01",
+        "abs_link": "https://arxiv.org/abs/1801.00001",
+        "pdf_link": "https://arxiv.org/pdf/1801.00001"
+      },
+      "b": {
+        "_source": "semantic",
+        "id": "s2-ccc333",
+        "title": "Introduction to Robotics",
+        "authors": ["Beta Professor"],
+        "year": "2022",
+        "abstract": "A different introductory monograph from 2022.",
+        "citations": 5,
+        "url": "https://www.semanticscholar.org/paper/ccc333",
+        "pdf_url": "",
+        "arxiv_id": "2201.00001"
+      }
+    },
+    {
+      "reason": "EDGE / KNOWN FALSE POSITIVE — identical title 'Neural Network Design' but different publication years (2018 vs 2021) and no DOIs; they are actually different works. Current logic ignores year and merges on title. Expected: NOT duplicate.",
+      "a": {
+        "_source": "semantic",
+        "id": "s2-ddd444",
+        "title": "Neural Network Design",
+        "authors": ["Early Author"],
+        "year": "2018",
+        "abstract": "2018 edition.",
+        "citations": 100,
+        "url": "https://www.semanticscholar.org/paper/ddd444",
+        "pdf_url": "",
+        "arxiv_id": ""
+      },
+      "b": {
+        "_source": "semantic",
+        "id": "s2-eee555",
+        "title": "Neural Network Design",
+        "authors": ["Later Author"],
+        "year": "2021",
+        "abstract": "A distinct 2021 work with the same title.",
+        "citations": 20,
+        "url": "https://www.semanticscholar.org/paper/eee555",
+        "pdf_url": "",
+        "arxiv_id": ""
+      }
+    }
+  ]
+}

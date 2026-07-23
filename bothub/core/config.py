@@ -31,5 +31,10 @@ MERGED_FILE           = os.path.join(REPO_ROOT, "merged_results.json")
 PROBLEM_MAP_FILE      = os.path.join(REPO_ROOT, "problem_map.json")
 PAPERS_DIR            = os.path.join(REPO_ROOT, "papers")
 
+# Dedup observability log (JSON-lines, one record per merge run, gitignored).
+# Gives a paper trail of DOI coverage and dedup rate so a future regression
+# in the merge logic is detectable after the fact. See merge_bot._log_metrics.
+DEDUP_METRICS_LOG     = os.path.join(REPO_ROOT, "dedup_metrics.log")
+
 # ── Database (SQLite, repo root, gitignored) ─────────────────────────────────
 DB_PATH = os.path.join(REPO_ROOT, "bothub.db")

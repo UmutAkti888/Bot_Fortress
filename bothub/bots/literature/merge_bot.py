@@ -9,8 +9,15 @@ from core.config import (
     IEEE_RESULTS_FILE,
     OPENALEX_RESULTS_FILE,
     MERGED_FILE,
+    DEDUP_METRICS_LOG,
 )
 import os
+import json as _json
+from datetime import datetime
+
+# How many past runs to average when judging whether this run's dedup rate
+# looks implausible. Small window = reacts quickly to recent behavior.
+_ROLLING_WINDOW = 10
 
 # Input files — one per search source (all paths from core.config)
 SOURCE_FILES = {
@@ -89,6 +96,77 @@ def is_duplicate(a: dict, b: dict) -> bool:
     return False
 
 
+# ── Dedup observability (Step 3 — runtime paper trail, not a UI) ──────────────
+
+def _read_recent_metrics(window: int = _ROLLING_WINDOW) -> list[dict]:
+    """
+    Return up to the last `window` metric records from the JSON-lines log.
+    Silently returns [] if the log is missing or any line is unreadable —
+    observability must never break the merge itself.
+    """
+    if not os.path.exists(DEDUP_METRICS_LOG):
+        return []
+    records = []
+    try:
+        with open(DEDUP_METRICS_LOG, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    records.append(_json.loads(line))
+                except ValueError:
+                    continue  # skip a corrupt line rather than abort
+    except OSError:
+        return []
+    return records[-window:]
+
+
+def _log_metrics(metrics: dict) -> None:
+    """Append one metrics record as a JSON line. Best-effort — never raises."""
+    try:
+        with open(DEDUP_METRICS_LOG, "a", encoding="utf-8") as f:
+            f.write(_json.dumps(metrics, ensure_ascii=False) + "\n")
+    except OSError as e:
+        print(f"[Merge Bot] Could not write dedup metrics log: {e}")
+
+
+def _check_dedup_health(metrics: dict, history: list[dict]) -> list[str]:
+    """
+    Compare this run's dedup rate against the rolling average of prior runs
+    and return a list of human-readable warnings (empty if all looks normal).
+
+    Two implausibility signals:
+      1. Dedup rate collapsed to 0% on a run where cross-source overlap was
+         plausible (multiple sources returned papers) — suggests the matcher
+         silently stopped matching.
+      2. Dedup rate deviates sharply (> 40 percentage points) from the rolling
+         average of recent runs — a spike or crash worth a second look.
+    """
+    warnings = []
+    rate = metrics["dedup_rate"]
+
+    # Signal 1: zero dedup despite multiple sources contributing papers.
+    active_sources = sum(1 for v in metrics["source_counts"].values() if v > 0)
+    if rate == 0.0 and active_sources >= 2 and metrics["total_before"] > 1:
+        warnings.append(
+            f"dedup rate is 0% across {active_sources} active sources "
+            f"({metrics['total_before']} papers) — matcher may have stopped working."
+        )
+
+    # Signal 2: sharp deviation from the rolling average of prior runs.
+    prior_rates = [h["dedup_rate"] for h in history if "dedup_rate" in h]
+    if len(prior_rates) >= 3:
+        avg = sum(prior_rates) / len(prior_rates)
+        if abs(rate - avg) > 0.40:
+            warnings.append(
+                f"dedup rate {rate:.0%} deviates sharply from recent average "
+                f"{avg:.0%} (last {len(prior_rates)} runs)."
+            )
+
+    return warnings
+
+
 def merge_all(include_previous=False) -> dict:
     """
     Load results from all available source files, deduplicate, and save.
@@ -141,14 +219,24 @@ def merge_all(include_previous=False) -> dict:
 
     total_before = previous_count + len(raw_new)
 
+    # ── Observability counters (do NOT affect the dedup decision) ─────────────
+    incoming_with_doi = 0   # incoming records that carried a usable DOI
+    merged_via_doi    = 0   # merges resolved on the DOI path
+    merged_via_title  = 0   # merges resolved on the title fallback
+
     for paper in raw_new:
         doi   = _normalize_doi(paper.get("doi", ""))
         title = _normalize_title(paper.get("title", ""))
 
+        if doi:
+            incoming_with_doi += 1
+
         if doi and doi in seen_dois:
+            merged_via_doi += 1
             _merge_into(unique[seen_dois[doi]], paper)
             continue
         if title and title in seen_titles:
+            merged_via_title += 1
             _merge_into(unique[seen_titles[title]], paper)
             continue
 
@@ -166,6 +254,40 @@ def merge_all(include_previous=False) -> dict:
     print(f"[Merge Bot] {total_before} total → {len(unique)} unique "
           f"({duplicates_removed} duplicates removed)")
 
+    # ── Emit the runtime paper trail (Step 3) ─────────────────────────────────
+    # doi_coverage: of the NEW incoming records, how many had a DOI at all.
+    # A low value means dedup is leaning on the fragile title fallback.
+    new_count    = len(raw_new)
+    doi_coverage = (incoming_with_doi / new_count) if new_count else 0.0
+    dedup_rate   = (duplicates_removed / total_before) if total_before else 0.0
+
+    metrics = {
+        "timestamp":        datetime.now().isoformat(timespec="seconds"),
+        "source_counts":    counts,
+        "total_before":     total_before,
+        "total_after":      len(unique),
+        "duplicates_removed": duplicates_removed,
+        "dedup_rate":       round(dedup_rate, 4),
+        "incoming_new":     new_count,
+        "incoming_with_doi": incoming_with_doi,
+        "doi_coverage":     round(doi_coverage, 4),
+        "merged_via_doi":   merged_via_doi,
+        "merged_via_title": merged_via_title,
+    }
+
+    # Compare against recent history BEFORE appending this run.
+    history  = _read_recent_metrics()
+    warnings = _check_dedup_health(metrics, history)
+    metrics["warnings"] = warnings
+
+    print(f"[Merge Bot] DOI coverage {doi_coverage:.0%} of {new_count} new "
+          f"| dedup rate {dedup_rate:.0%} "
+          f"| merges: {merged_via_doi} by DOI, {merged_via_title} by title")
+    for w in warnings:
+        print(f"[Merge Bot] WARNING: {w}")
+
+    _log_metrics(metrics)
+
     return {
         "counts":             counts,
         "query_meta":         query_meta,
@@ -173,6 +295,11 @@ def merge_all(include_previous=False) -> dict:
         "total_before":       total_before,
         "total_after":        len(unique),
         "duplicates_removed": duplicates_removed,
+        "dedup_rate":         round(dedup_rate, 4),
+        "doi_coverage":       round(doi_coverage, 4),
+        "merged_via_doi":     merged_via_doi,
+        "merged_via_title":   merged_via_title,
+        "warnings":           warnings,
         "papers":             unique,
     }
 

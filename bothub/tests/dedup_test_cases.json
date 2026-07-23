@@ -258,6 +258,32 @@
       }
     },
     {
+      "reason": "KNOWN FALSE POSITIVE (found via integration test) — two different papers sharing the generic title 'Deep Learning' where ONE has a DOI and the other does not (ArXiv preprint vs an unrelated IEEE paper). The DOI veto cannot fire (needs both DOIs), so only the secondary signal separates them: authors and years both differ. Expected: NOT duplicate.",
+      "a": {
+        "_source": "arxiv",
+        "id": "1500.00001",
+        "title": "Deep Learning",
+        "authors": ["Yann LeCun"],
+        "summary": "An ArXiv note titled 'Deep Learning'.",
+        "published": "2015-01-01",
+        "abs_link": "https://arxiv.org/abs/1500.00001",
+        "pdf_link": "https://arxiv.org/pdf/1500.00001"
+      },
+      "b": {
+        "_source": "ieee",
+        "id": "7000009",
+        "title": "Deep Learning",
+        "authors": ["Some Otherperson"],
+        "year": "2021",
+        "abstract": "A different IEEE paper that happens to share the title.",
+        "citations": 3,
+        "doi": "10.1000/other.2021.7000009",
+        "url": "https://ieeexplore.ieee.org/document/7000009",
+        "pdf_url": "",
+        "publication": "Some Conference"
+      }
+    },
+    {
       "reason": "Clearly different papers: different titles, no shared DOI. Baseline sanity check — must NOT dedupe.",
       "a": {
         "_source": "arxiv",
@@ -306,14 +332,14 @@
       }
     },
     {
-      "reason": "EDGE / KNOWN FALSE POSITIVE — identical title 'Neural Network Design' but different publication years (2018 vs 2021) and no DOIs; they are actually different works. Current logic ignores year and merges on title. Expected: NOT duplicate.",
+      "reason": "EDGE / KNOWN FALSE POSITIVE — identical title 'Neural Network Design' but two genuinely different works: different authors AND different publication years (2018 vs 2021), no DOIs. Under the year-OR-first-author policy this must stay distinct (both signals differ). Current (pre-fix) logic ignores year/author and merges on title. Expected: NOT duplicate.",
       "a": {
         "_source": "semantic",
         "id": "s2-ddd444",
         "title": "Neural Network Design",
-        "authors": ["Early Author"],
+        "authors": ["Martin Hagan"],
         "year": "2018",
-        "abstract": "2018 edition.",
+        "abstract": "2018 monograph by one group.",
         "citations": 100,
         "url": "https://www.semanticscholar.org/paper/ddd444",
         "pdf_url": "",
@@ -323,9 +349,9 @@
         "_source": "semantic",
         "id": "s2-eee555",
         "title": "Neural Network Design",
-        "authors": ["Later Author"],
+        "authors": ["Kenji Doya"],
         "year": "2021",
-        "abstract": "A distinct 2021 work with the same title.",
+        "abstract": "A distinct 2021 work that happens to share the title.",
         "citations": 20,
         "url": "https://www.semanticscholar.org/paper/eee555",
         "pdf_url": "",

@@ -63,37 +63,101 @@ def _normalize_doi(doi: str) -> str:
     return doi
 
 
+def _paper_year(paper: dict) -> str:
+    """
+    Extract a 4-digit publication year as a string, or "" if unknown.
+    Handles both the 'year' field (semantic/ieee/openalex) and the ArXiv
+    'published' date (YYYY-MM-DD), from which the leading 4 digits are taken.
+    """
+    year = str(paper.get("year") or "").strip()
+    if not year:
+        year = str(paper.get("published") or "").strip()
+    m = re.search(r"\d{4}", year)
+    return m.group(0) if m else ""
+
+
+def _first_author_surname(paper: dict) -> str:
+    """
+    Return the lowercased surname of the first listed author, or "" if none.
+    Surname = last whitespace-separated token, stripped of punctuation, so
+    'W. Hess' and 'Wolfgang Hess' both reduce to 'hess'.
+    """
+    authors = paper.get("authors") or []
+    if not authors or not authors[0]:
+        return ""
+    tokens = str(authors[0]).strip().split()
+    if not tokens:
+        return ""
+    surname = tokens[-1].lower()
+    return re.sub(r"[^a-z0-9]", "", surname)
+
+
+def _secondary_signal_matches(a: dict, b: dict) -> bool:
+    """
+    Confirm a title-only match with a second piece of evidence.
+    Used ONLY when neither paper has a DOI, to stop two different papers that
+    share a generic title (e.g. two different 'Introduction to Robotics') from
+    being merged.
+
+    Policy (chosen for this project): merge if the publication YEARS match OR
+    the first-author SURNAMES match. Either signal is enough; both absent means
+    we do not merge.
+    """
+    year_a, year_b = _paper_year(a), _paper_year(b)
+    if year_a and year_b and year_a == year_b:
+        return True
+
+    surname_a, surname_b = _first_author_surname(a), _first_author_surname(b)
+    if surname_a and surname_b and surname_a == surname_b:
+        return True
+
+    return False
+
+
 def is_duplicate(a: dict, b: dict) -> bool:
     """
     Return True if papers `a` and `b` are considered the same work.
 
-    This is the pairwise predicate that mirrors the deduplication decision
-    made inside merge_all():
+    Decision order:
+      1. DOI evidence (strongest).
+           - Both have a DOI and they are equal      -> duplicate.
+           - Both have a DOI and they DIFFER          -> NOT a duplicate.
+             A differing DOI is hard proof they are distinct works, so it
+             VETOES the title fallback below (this is what stops two different
+             papers that share a generic title from merging).
+      2. Title fallback (when DOI could not decide — i.e. at least one side
+         has no DOI).
+           - Titles must be present and normalized-equal, AND
+           - a secondary signal must agree: matching publication YEAR OR
+             matching first-author SURNAME.
+             This is required for EVERY title-only match, including the
+             preprint-vs-published case (one side has a DOI, the other does
+             not). A shared generic title is not enough on its own — two
+             different 'Deep Learning' papers must not merge just because one
+             of them happens to carry a DOI. Real cross-source duplicates
+             reliably share an author or a year, so this does not cost us
+             legitimate merges.
 
-        1. DOI match first  — if BOTH papers carry a DOI and the normalized
-           DOIs are equal, they are duplicates.
-        2. Title fallback   — otherwise, if BOTH papers have a title and the
-           normalized titles are equal, they are duplicates.
-
-    It is intentionally pure (no file or global state) so the dedup rule can
-    be tested pair-by-pair. tests/test_dedup.py exercises this function.
-
-    NOTE (kept faithful on purpose): this reproduces current behavior exactly,
-    including its known weakness — a title match is NOT blocked when the two
-    papers carry DIFFERENT DOIs, and publication year is ignored. See
-    tests/dedup_test_cases.json for the documented false positives.
+    Pure function (no file or global state) so the rule is testable pair by
+    pair. tests/test_dedup.py exercises this directly, and merge_all() routes
+    its title-fallback decision through it so there is a single source of truth.
     """
     doi_a = _normalize_doi(a.get("doi") or "")
     doi_b = _normalize_doi(b.get("doi") or "")
-    if doi_a and doi_b and doi_a == doi_b:
-        return True
 
+    # ── DOI evidence ──────────────────────────────────────────────────────────
+    if doi_a and doi_b:
+        return doi_a == doi_b          # equal -> dup; differ -> distinct (veto)
+
+    # ── Title fallback (at least one side has no DOI) ─────────────────────────
     title_a = _normalize_title(a.get("title") or "")
     title_b = _normalize_title(b.get("title") or "")
-    if title_a and title_b and title_a == title_b:
-        return True
+    if not (title_a and title_b and title_a == title_b):
+        return False
 
-    return False
+    # A matching title alone is too weak for generic titles — require a
+    # secondary signal (matching year OR matching first-author surname).
+    return _secondary_signal_matches(a, b)
 
 
 # ── Dedup observability (Step 3 — runtime paper trail, not a UI) ──────────────
@@ -231,27 +295,37 @@ def merge_all(include_previous=False) -> dict:
         if doi:
             incoming_with_doi += 1
 
+        # Fast DOI path: an equal DOI is always a duplicate.
         if doi and doi in seen_dois:
             merged_via_doi += 1
             _merge_into(unique[seen_dois[doi]], paper)
             continue
+
+        # Title candidate: confirm with is_duplicate() before merging. This is
+        # what applies the DOI veto (differing DOIs block a title merge) and the
+        # secondary-signal requirement for DOI-less pairs. A title collision
+        # that is NOT a real duplicate falls through and is kept as a new paper.
         if title and title in seen_titles:
-            merged_via_title += 1
-            _merge_into(unique[seen_titles[title]], paper)
-            continue
+            candidate = unique[seen_titles[title]]
+            if is_duplicate(paper, candidate):
+                merged_via_title += 1
+                _merge_into(candidate, paper)
+                continue
 
         idx = len(unique)
         unique.append(dict(paper))
         if doi:
             seen_dois[doi] = idx
-        if title:
+        # Only claim the title bucket if it is unused, so the first paper under
+        # a shared title remains the comparison anchor for later candidates.
+        if title and title not in seen_titles:
             seen_titles[title] = idx
 
     with open(MERGED_FILE, "w", encoding="utf-8") as f:
         json.dump(unique, f, indent=2, ensure_ascii=False)
 
     duplicates_removed = total_before - len(unique)
-    print(f"[Merge Bot] {total_before} total → {len(unique)} unique "
+    print(f"[Merge Bot] {total_before} total -> {len(unique)} unique "
           f"({duplicates_removed} duplicates removed)")
 
     # ── Emit the runtime paper trail (Step 3) ─────────────────────────────────

@@ -56,6 +56,39 @@ def _normalize_doi(doi: str) -> str:
     return doi
 
 
+def is_duplicate(a: dict, b: dict) -> bool:
+    """
+    Return True if papers `a` and `b` are considered the same work.
+
+    This is the pairwise predicate that mirrors the deduplication decision
+    made inside merge_all():
+
+        1. DOI match first  — if BOTH papers carry a DOI and the normalized
+           DOIs are equal, they are duplicates.
+        2. Title fallback   — otherwise, if BOTH papers have a title and the
+           normalized titles are equal, they are duplicates.
+
+    It is intentionally pure (no file or global state) so the dedup rule can
+    be tested pair-by-pair. tests/test_dedup.py exercises this function.
+
+    NOTE (kept faithful on purpose): this reproduces current behavior exactly,
+    including its known weakness — a title match is NOT blocked when the two
+    papers carry DIFFERENT DOIs, and publication year is ignored. See
+    tests/dedup_test_cases.json for the documented false positives.
+    """
+    doi_a = _normalize_doi(a.get("doi") or "")
+    doi_b = _normalize_doi(b.get("doi") or "")
+    if doi_a and doi_b and doi_a == doi_b:
+        return True
+
+    title_a = _normalize_title(a.get("title") or "")
+    title_b = _normalize_title(b.get("title") or "")
+    if title_a and title_b and title_a == title_b:
+        return True
+
+    return False
+
+
 def merge_all(include_previous=False) -> dict:
     """
     Load results from all available source files, deduplicate, and save.
